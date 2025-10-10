@@ -12,18 +12,25 @@ mp_maindataset()
 
 full_corpus <- mp_corpus_df_bilingual(apikey="manifesto_apikey.txt")
 
-my_corpus_df <- mp_corpus(countryname == "Sweden", translation = "en",
+my_corpus_df <- mp_corpus(countryname == "Iceland", translation = "en",
                           as_tibble = TRUE)
 
-library(readr)
+# getting the party information 
+
 MPDataset_MPDS2025a <- read_csv("MPDataset_MPDS2025a.csv")
 View(MPDataset_MPDS2025a)
 
+# making a vector containing all the countries in the dataset
+
 countries <- unique(MPDataset_MPDS2025a$countryname)
 
-# checking which countries are included in the corpus
+# removing Iceland from the list since there is no data
 
-?mp_metadata
+countries <- countries[!countries %in% c("Iceland", "Northern Ireland", "Malta", "Sri Lanka", "Albania", 
+                                         "Armenia", "Azerbaijan", "Belarus", "Bosnia-Herzegovina", "Bulgaria",
+                                         "Croatia", "Georgia", "German Democratic Republic", "North Macedonia",
+                                         "Montenegro", "Serbia", "South Korea")]
+
 
 # cleaning by adding row numbers and selecting only relevant columns
 
@@ -48,44 +55,42 @@ corpus_filtered <- corpus_id |>
 
 write.csv(corpus_filtered, "corpus_filtered.csv", row.names = FALSE)
 
-# selecting relevant columns to view the accuracy of the filtering
-
-View(corpus_filtered |>
-  select(text, rownumber))
-
-# Exporting as an excel file for easier viewing
-
-
-
-# deleting an irrelevant rows
-
-corpus_filtered <- corpus_filtered |>
-  filter(!rownumber %in% c(533, 634, 2868, 4775, 16503, 17633, 23340, 23341, 23716, 24861, 25669, 26954, 39951, 39952, 42239
-  ))
 
 # Viewing unclear rows to decide whether to keep or delete them
 
 View(corpus_id |>
        slice(42010:42015))
-# viewing the filtered corpus
 
-
-corpus_therapy <- corpus_id |>
-  filter(grepl("therapy", text, ignore.case = TRUE))
-
-View(corpus_therapy |>
-  select(text, rownumber))
-
-# Creating a year variable from the date variable currently in YYYYMM format
-
-corpus_filtered <- corpus_filtered |>
-  mutate(year = as.integer(str_sub(date, 1, 4)))
 
 # creating a function that goes through all the countries and creates a csv for each country
 
+create_country_csv <- function(country_name) {
+  country_corpus <- mp_corpus(countryname == country_name, translation = "en",
+                              as_tibble = TRUE)
+  
+  corpus_id <- country_corpus |>
+    mutate(rownumber = row_number(),
+           year = as.numeric(substr(date, 0, 4))) |>
+    select(!c(eu_code, cmp_code, manifesto_id, annotations, translation_en))
+  
+  corpus_filtered <- corpus_id |>
+    filter(grepl(pattern, text, ignore.case = TRUE))
+  
+  if (nrow(corpus_filtered) > 0) {
+    write.csv(corpus_filtered, paste0("data/corpus_", country_name, ".csv"), row.names = FALSE)
+  }
+}
 
 
+# Looping through first five countries and creating a csv for each
 
+for (country in countries[45:50]) {
+  create_country_csv(country)
+  print(paste("Created CSV for", country))
+}
+
+
+countries[38]
 # creating a new df that counts the number of rows per year
 
 corpus_count <- corpus_filtered |>
