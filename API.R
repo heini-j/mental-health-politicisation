@@ -55,7 +55,8 @@ create_country_csv <- function(country_name) {
     select(!c(eu_code, cmp_code, manifesto_id, annotations, translation_en))
   
   corpus_filtered <- corpus_id |>
-    filter(grepl(pattern, text, ignore.case = TRUE))
+    filter(grepl(pattern, text, ignore.case = TRUE)) |>
+    distinct(text, .keep_all = TRUE)
   
   if (nrow(corpus_filtered) > 0) {
     write.csv(corpus_filtered, 
