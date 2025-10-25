@@ -62,14 +62,22 @@ create_country_csv <- function(country_name) {
   # Filter relevant text
   corpus_filtered <- corpus_id |>
     filter(!is.na(text) & grepl(pattern, text, ignore.case = TRUE)) |> # removing empty rows and including those with keywords
-    distinct(text, .keep_all = TRUE) # removing duplicates
+    distinct(text, .keep_all = TRUE) } # removing duplicates
   
-  # Save to CSV
+  # Save to CSV if data left after filtering
+  if (nrow(corpus_filtered) > 0) {
   write.csv(corpus_filtered,
             paste0("data/corpus_", country_name, ".csv"),
             row.names = FALSE)
   print(paste("Created CSV for", country_name))
-  return(invisible(NULL)) }
+  return(invisible(NULL))}
+  
+  # in case of no relevant rows of text
+  else {
+    message(paste("No relevant data found for", country_name))
+    no_data_countries <<- c(no_data_countries, country_name)
+    return(invisible(no_data_countries))
+  }
 }
 
 # Creating CSV for each country ----
@@ -79,6 +87,7 @@ create_country_csv <- function(country_name) {
 for (country in countries) {
   create_country_csv(country)
 }
+
 
 # Viewing countries with no data
 
