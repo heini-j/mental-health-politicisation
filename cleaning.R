@@ -1,6 +1,7 @@
 library(readr)
 library(dplyr)
-library(fuzzyjoin)
+library(purrr)
+library(tidyr)
 
 # Loading the manifesto file to R ----
 
@@ -13,13 +14,39 @@ ches_countries <- read_csv("ches-party-codebooks.csv", na = "", locale = locale(
   select(countrycode, countryshort, countryname) |> 
   distinct()
 
-ches_trend_1999_2019 <- read_csv("1999-2019_CHES_dataset_means(v3).csv", na = "", locale = locale(encoding = "ASCII")) |> 
+ches_trend_1999_2019 <- read_csv("1999-2019_CHES_dataset_means(v3).csv", na = "", locale = locale(encoding = "ASCII")) #|> 
   select(countrycode = country, party_id, party, year)
 
+# loading the data to R 
+  
 partyfacts <- 
-  read_csv("partyfacts-external-parties.csv", na = "", locale = locale(encoding = "UTF-8")) |> 
-  filter(dataset_key %in% c("manifesto")) |> 
-  #select(dataset_party_id, partyfacts_id) |> 
+  read_csv("partyfacts-external-parties.csv", locale = locale(encoding = "UTF-8")) #
+
+unique(partyfacts$dataset_key)
+
+|> 
+  filter(dataset_key %in% c("ches", "manifesto"),
+         country == "AUS")
+
+# creating a dataframe that shows party name for each year
+
+partyfacts_years <- partyfacts |> 
+  group_by(rn = row_number()) |>
+  mutate(year = list(year_first:year_last)) |>
+  unnest(cols = c(year)) |>
+  ungroup() |>
+  select(country, 
+         partyfacts_id, 
+         dataset_key, 
+         dataset_party_id, 
+         name_short,
+         year)
+    
+  pivot_wider(id_cols = partyfacts_id,
+              id_expand = TRUE,
+              names_from = dataset_key,
+              values_from = dataset_party_id) #|>
+  select(dataset_party_id, partyfacts_id) |> 
   mutate(dataset_party_id = as.numeric(dataset_party_id)) |> 
   distinct()
 
@@ -48,32 +75,10 @@ ches_partyfacts <-
   ches |> 
   left_join(partyfacts, by = c("party_id" = "dataset_party_id"))
 
-# Cleaning the data ----
+ches_partyfacts <- ches_partyfacts |> 
+  mutate(year = map2(as.numeric(year_first), as.numeric(year_last), seq = 1, by = 1)) |>
+           unnest(year)
+  
 
-# The data contains a lot of duplicates - let's find them
 
-repeated <- unique(data_australia$text)
 
-length(repeated)
-
-# 499 unique texts - many are multiple times in the dataset
-
-# Let's remove the duplicates keeping only first occurence of each unique value
-
-df_clean <- data_australia |>
-  distinct(text, .keep_all = TRUE) |>
-  rename("dataset_party_id" = "party")
-
-View(df_clean)
-
-df_joined <- fuzzy_left_join(
-  df_clean, partyfacts,
-  by = c(
-    "party_id" = "dataset_party_id",
-    "year_first" ="year",
-    "year_last" ="year"
-  ),
-  match_fun = list(`==`, `>=`, `<=`)
-)
-
-?fuzzy_inner_join
