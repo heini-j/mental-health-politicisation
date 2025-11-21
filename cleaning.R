@@ -5,14 +5,17 @@ library(tidyr)
 
 # Loading the manifesto file to R ----
 
-data_australia <- read_csv("data/corpus_Australia.csv")
+corpus_Belgium <- read_csv("data/corpus_Belgium.csv", 
+                      col_types = cols(year = col_double()))
 
-View(data_australia)
+
 
 # Load the data + specify the variables to be used
 ches_countries <- read_csv("ches-party-codebooks.csv", na = "", locale = locale(encoding = "UTF-8")) |> 
   select(countrycode, countryshort, countryname) |> 
   distinct()
+
+
 
 ches_trend_1999_2019 <- read_csv("1999-2019_CHES_dataset_means(v3).csv", na = "", locale = locale(encoding = "ASCII")) #|> 
   select(countrycode = country, party_id, party, year)
@@ -20,15 +23,20 @@ ches_trend_1999_2019 <- read_csv("1999-2019_CHES_dataset_means(v3).csv", na = ""
 # loading the data to R 
   
 partyfacts <- 
-  read_csv("partyfacts-external-parties.csv", locale = locale(encoding = "UTF-8")) #
-
-unique(partyfacts$dataset_key)
-
-|> 
+  read_csv("partyfacts-external-parties.csv", locale = locale(encoding = "UTF-8")) |> 
   filter(dataset_key %in% c("ches", "manifesto"),
-         country == "AUS")
+         country == "BEL") |>
+  select(country, 
+         partyfacts_id, 
+         dataset_key, 
+         dataset_party_id, 
+         name_short,
+         year_first,
+         year_last)
 
-# creating a dataframe that shows party name for each year
+problems(partyfacts)
+
+# sequencing to get all years for each party
 
 partyfacts_years <- partyfacts |> 
   group_by(rn = row_number()) |>
@@ -41,14 +49,25 @@ partyfacts_years <- partyfacts |>
          dataset_party_id, 
          name_short,
          year)
+
+# pivoting wider to get dataset party ids in columns
+
+columns_keep <- partyfacts_years |> 
+  select(year, partyfacts_id, country, name_short)
     
-  pivot_wider(id_cols = partyfacts_id,
+# 
+
+partyfacts_wider <- partyfacts_years |>
+  pivot_wider(id_cols = c(partyfacts_id, year),
               id_expand = TRUE,
               names_from = dataset_key,
-              values_from = dataset_party_id) #|>
-  select(dataset_party_id, partyfacts_id) |> 
-  mutate(dataset_party_id = as.numeric(dataset_party_id)) |> 
-  distinct()
+              values_from = dataset_party_id)
+
+partyfacts_wider <- partyfacts_wider |> 
+  left_join(columns_keep, by = c("partyfacts_id", "year")) 
+
+
+
 
 ches_europe <- 
   bind_rows(
