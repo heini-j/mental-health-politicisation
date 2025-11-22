@@ -15,13 +15,10 @@ corpus_Belgium_summary <- corpus_Belgium |>
   summarise(count = n(), .groups = "drop")
 
 
-
 # Load the data + specify the variables to be used
 ches_countries <- read_csv("ches-party-codebooks.csv", na = "", locale = locale(encoding = "UTF-8")) |> 
   select(countrycode, countryshort, countryname) |> 
   distinct()
-
-
 
 ches_trend_1999_2019 <- read_csv("1999-2019_CHES_dataset_means(v3).csv", na = "", locale = locale(encoding = "ASCII")) #|> 
   select(countrycode = country, party_id, party, year)
@@ -70,7 +67,7 @@ partyfacts_wider <- partyfacts_years |>
 # combining back the columns we want to keep
 
 partyfacts_wider <- partyfacts_wider |> 
-  left_join(columns_keep, by = c("partyfacts_id", "year")) 
+  left_join(columns_keep, by = c("partyfacts_id", "year"), keep = F) 
 
 
 # FOr the test case of Belgium, selecting only the right country and rows with ches and manifesto ids
@@ -81,10 +78,12 @@ partyfacts_belgium <- partyfacts_wider |>
          !is.na(manifesto)) |>
   mutate(manifesto = as.double(manifesto))
 
+
+
 # combining the two different language party names to the same row
 
 partyfacts_belgium_clean <- partyfacts_belgium |>
-  group_by(manifesto, year) |>
+  group_by(manifesto, year, ches, partyfacts_id) |>
   summarise(
     name_bilingual = paste(unique(name_short), collapse = " / "),
     .groups = "drop"
@@ -94,14 +93,16 @@ partyfacts_belgium_clean <- partyfacts_belgium |>
 
 corpus_belgium_bilingual <- corpus_Belgium_summary |>
   rename(manifesto = party) |>
-  left_join(partyfacts_belgium_clean, by = c("manifesto", "year"))
+  left_join(partyfacts_belgium_clean, by = c("manifesto", "year"), keep = F)
 
 # adding ches codes to the corpus and removing unneeded columns
 
 corpus_belgium_ches <- 
   corpus_belgium_bilingual |>
-  left_join(partyfacts_belgium, by = c("manifesto", "year"))  |> 
-  select(-c(country, manifesto, name_short, partyfacts_id))
+  left_join(partyfacts_belgium_clean, by = c("manifesto", "year"), keep = F) # |> 
+  select(-c(country, name_short))
+
+?left_join
 
 # Adding CHES scores to the corpus ----
 
