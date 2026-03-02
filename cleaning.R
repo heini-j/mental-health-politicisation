@@ -3,26 +3,20 @@ library(dplyr)
 library(purrr)
 library(tidyr)
 
-# Loading the manifesto file to R ----
 
-corpus_Belgium <- read_csv("data/corpus_Belgium.csv", 
-                      col_types = cols(year = col_double()))
+# CHES datasets ----
 
-# summarising for how many items per year and party
-
-corpus_Belgium_summary <- corpus_Belgium |> 
-  group_by(party, year) |> 
-  summarise(count = n(), .groups = "drop")
-
-
-# Load the data + specify the variables to be used
+# Load the CHES codes for later combining of datasets
 ches_countries <- read_csv("ches-party-codebooks.csv", na = "", locale = locale(encoding = "UTF-8")) |> 
   select(countrycode, countryshort, countryname) |> 
   distinct()
 
+# Loading the CHES scores
 ches_trend_1999_2019 <- read_csv("1999-2019_CHES_dataset_means(v3).csv", na = "", locale = locale(encoding = "ASCII")) #|> 
   select(countrycode = country, party_id, party, year)
 
+# Partyfacts dataset ----
+  
 # loading the data to R 
   
 partyfacts <- 
@@ -37,7 +31,7 @@ partyfacts <-
          year_first,
          year_last)
 
-# sequencing to get all years for each party
+# sequencing to get all a row per each year in the dataset
 
 partyfacts_years <- partyfacts |> 
   group_by(rn = row_number()) |>
@@ -51,7 +45,7 @@ partyfacts_years <- partyfacts |>
          name_short,
          year)
 
-# pivoting wider to get dataset party ids in columns
+# Saving some columns to combine later with the wide dataset
 
 columns_keep <- partyfacts_years |> 
   select(year, partyfacts_id, country, name_short)
@@ -64,23 +58,25 @@ partyfacts_wider <- partyfacts_years |>
               names_from = dataset_key,
               values_from = dataset_party_id)
 
-# combining back the columns we want to keep
+# removing lines where either ches or manifesto ids are missing
 
-partyfacts_wider <- partyfacts_wider |> 
-  left_join(columns_keep, by = c("partyfacts_id", "year"), keep = F) 
+partyfacts_wider_na <- partyfacts_wider |> 
+  filter(!is.na(ches) & !is.na(manifesto))
+
+# combining back the columns we want to keep 
+# ISSUE: parties have multiple names due to several national languages
+
+partyfacts_wider_na <- partyfacts_wider_na |> 
+  left_join(columns_keep, by = c("partyfacts_id", "year"), keep =T, relationship = "many-to-many") 
 
 
-# FOr the test case of Belgium, selecting only the right country and rows with ches and manifesto ids
+# converting manifesto id to numeric
 
-partyfacts_belgium <- partyfacts_wider |> 
-  filter(country == "BEL",
-         !is.na(ches),
-         !is.na(manifesto)) |>
+partyfacts_belgium <- partyfacts_wider_na |>
   mutate(manifesto = as.double(manifesto))
 
 
-
-# combining the two different language party names to the same row
+# Creating a new column that combines party names that are in two languages
 
 partyfacts_belgium_clean <- partyfacts_belgium |>
   group_by(manifesto, year, ches, partyfacts_id) |>
@@ -89,11 +85,27 @@ partyfacts_belgium_clean <- partyfacts_belgium |>
     .groups = "drop"
   )
 
-# Adding ches ids to the corpus df to eventually merging the ches data
+
+# Creating a corpus summary ---
+
+# Loading the Belgium manifesto project corpus data to R
+
+corpus_Belgium <- read_csv("data/corpus_Belgium.csv", 
+                           col_types = cols(year = col_double()))
+
+# Creating a summary of how many lines per party per year
+
+corpus_Belgium_summary <- corpus_Belgium |> 
+  group_by(party, year) |> 
+  summarise(count = n(), .groups = "drop")
+
+# Combining datasets ----
+
+# Adding ches codes to the corpus df to eventually merging the ches data
 
 corpus_belgium_bilingual <- corpus_Belgium_summary |>
-  rename(manifesto = party) |>
-  left_join(partyfacts_belgium_clean, by = c("manifesto", "year"), keep = F)
+  rename(manifesto = party) |>  # changing the column name in the corpus to match 
+  inner_join(partyfacts_belgium_clean, by = c("manifesto", "year"), keep = F) # keeping only rows with matching keys
 
 # adding ches codes to the corpus and removing unneeded columns
 
@@ -101,13 +113,15 @@ corpus_belgium_ches <-
   corpus_belgium_bilingual |>
   left_join(partyfacts_belgium_clean, by = c("manifesto", "year"), keep = F) # |> 
   select(-c(country, name_short))
-
-?left_join
-
-# Adding CHES scores to the corpus ----
+  
+# Loading the CHES scores
+ches_trend_1999_2019 <- read_csv("1999-2019_CHES_dataset_means(v3).csv", na = "", locale = locale(encoding = "ASCII")) #|> 
+select(countrycode = country, party_id, party, year)
 
 # filtering the ches data to only include codes for Belgium
 
+# Checking which ches codes and years are in the corpus
+  
 belgium_codes <- corpus_belgium_ches |>
   distinct(ches) |>
   pull(ches)
@@ -116,6 +130,7 @@ belgium_years <- corpus_belgium_ches |>
   distinct(year) |>
   pull(year)
 
+# Filtering the ches dataset to include only years and parties in the corpus
 
 ches_Belgium <- 
   ches_trend_1999_2019 |> 
@@ -130,35 +145,10 @@ corpus_belgium_final <-
   mutate(ches = as.double(ches)) |>
   left_join(ches_Belgium, by = c("ches" = "party_id", "year"))
 
-ches_europe <- 
-  bind_rows(
-    ches_trend_1999_2019 |> left_join(ches_countries, by = c("countrycode")) |> select(countryshort, year, party_id, party))
 
-ches_all <- 
-  bind_rows(
-    ches_europe |> mutate(party_id = as.numeric(party_id)))
 
-ches <- 
-  ches_all |> 
-  mutate(
-    year_first = min(year, na.rm = TRUE),
-    year_last = max(year, na.rm = TRUE),
-    .by = c(party_id)
-  ) |> 
-  select(-year) |> 
-  distinct() |> 
-  slice(1L, .by = c("party_id"))
 
-ches$party_id |> duplicated() |> any()
 
-ches_partyfacts <- 
-  ches |> 
-  left_join(partyfacts, by = c("party_id" = "dataset_party_id"))
-
-ches_partyfacts <- ches_partyfacts |> 
-  mutate(year = map2(as.numeric(year_first), as.numeric(year_last), seq = 1, by = 1)) |>
-           unnest(year)
-  
 
 
 
