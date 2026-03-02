@@ -100,7 +100,7 @@ corpus_with_ches <- corpus_belgium_bilingual |>
 
 # Saving the combined dataset -----
 
-write_csv(corpus_with_ches, "belgium_with_ches.csv")
+write_csv(corpus_with_ches, "data/belgium_with_ches.csv")
 
 
 
