@@ -41,3 +41,20 @@ corpus_party_year_count <- data_belgium |>
 
 View(corpus_party_year_count)
 
+# Visualisation ----
+
+ggplot(corpus_party_year_count, aes(x = year, y = count_party_year, color = name_bilingual)) +
+  geom_line() +
+  labs(title = "Number of lines per party per year in the Belgian corpus",
+       x = "Year",
+       y = "Count of lines") +
+  theme_minimal() +
+  theme(legend.title = element_blank())
+
+# correlation between count and galtan score
+
+correlation_data <- data_belgium |>
+  select(count, galtan)
+
+correlation_result <- cor(correlation_data$count, correlation_data$galtan, method = "pearson")
+print(paste("Correlation between count and galtan score:", correlation_result))
