@@ -2,6 +2,7 @@ library(manifestoR)
 library(dplyr)
 library(stringr)
 library(readr)
+library(tidyr)
 
 # Connecting to the API --------------
 
@@ -12,14 +13,58 @@ mp_maindataset()
 
 # reading in the dataset with the the party information ----
 
-manifesto_countries <- read_csv("MPDataset_MPDS2025a.csv")
-View(manifesto_countries)
+main_df <- read_csv("MPDataset_MPDS2025a.csv")
+
+# seeing which countries were eu members during the latest input in the dataset
+
+main_filtered <- main_df |>
+  group_by(countryname) |>
+  filter(eumember[which.max(date)] == 10) |> # choosing countries that were EU members during the last election in the data set
+  ungroup() |>
+  filter(date > 199812)  #CHES starts from 1999
+
+View(main_filtered)
+
+# Making a list of manifesto id:s for later use
+
+manifesto_ids <- main_filtered |>
+  mutate(manifesto_id = paste0(party, "_", date)) |>
+  select(manifesto_id)|>
+  pull()
+  
+# 1240 potential manifesto documents to retrieve from 27 countries
+
 
 # Defining relevant filters ----
 
 # making a vector containing all the countries in the dataset
 
-countries <- unique(manifesto_countries$countryname)
+party <- strsplit(manifesto_ids[65], "_")[[1]][1]
+date <- strsplit(manifesto_ids[65], "_")[[1]][2]
+
+test <- mp_corpus(party == party, 
+                  date == date, 
+                  as_tibble = TRUE)
+
+?mp_corpus
+
+test_belgium <- mp_corpus(countryname == "Belgium", 
+                        translation = "en",
+                        as_tibble = TRUE)
+
+View(test_belgium)
+
+#saving as a csv for later use
+
+write_csv(test_belgium, "data/corpus_Belgium.csv")
+
+head(test_belgium$text)
+
+sample_test <- test_belgium |>
+  slice_sample(n=30, replace = FALSE)
+
+View(sample_test)
+
 
 # creating a list of relevant keywords
 keywords <- c("mental health", "mental illness", "depression","anxiety","ADHD", "autism", "therapy")
