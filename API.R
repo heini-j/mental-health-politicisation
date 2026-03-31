@@ -9,11 +9,7 @@ library(tidyr)
 # Setting the API key
 mp_setapikey("manifesto_apikey.txt")
 
-mp_maindataset()
-
-# reading in the dataset with the the party information ----
-
-main_df <- read_csv("MPDataset_MPDS2025a.csv")
+main_df <- mp_maindataset()
 
 # seeing which countries were eu members during the latest input in the dataset
 
@@ -39,14 +35,19 @@ manifesto_ids <- main_filtered |>
 
 # making a vector containing all the countries in the dataset
 
-party <- strsplit(manifesto_ids[65], "_")[[1]][1]
-date <- strsplit(manifesto_ids[65], "_")[[1]][2]
 
-test <- mp_corpus(party == party, 
-                  date == date, 
-                  as_tibble = TRUE)
+request <- data.frame(party = strsplit(manifesto_ids[1238], "_")[[1]][1], 
+                      date = strsplit(manifesto_ids[1238], "_")[[1]][2]) |>
+  mutate(date = as.double(date),
+         party = as.double(party))
 
-?mp_corpus
+
+
+test <- mp_corpus_df(request,
+                     translation = "en")
+
+
+View(test)
 
 test_belgium <- mp_corpus(countryname == "Belgium", 
                         translation = "en",
