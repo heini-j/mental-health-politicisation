@@ -24,28 +24,61 @@ View(main_filtered)
 # Making a list of manifesto id:s for later use
 
 manifesto_ids <- main_filtered |>
-  mutate(manifesto_id = paste0(party, "_", date)) |>
-  select(manifesto_id)|>
-  pull()
+  select(party, date)
   
 # 1240 potential manifesto documents to retrieve from 27 countries
 
 
 # Defining relevant filters ----
 
-# making a vector containing all the countries in the dataset
+# test sample
 
-
-request <- data.frame(party = strsplit(manifesto_ids[1238], "_")[[1]][1], 
-                      date = strsplit(manifesto_ids[1238], "_")[[1]][2]) |>
-  mutate(date = as.double(date),
-         party = as.double(party))
-
+request <- manifesto_ids[77, 1:2]
 
 
 test <- mp_corpus_df(request,
                      translation = "en")
 
+# creating a csv file of the test manifesto
+
+write_csv(test, paste0("data/", request$party, "_", request$date, ".csv"))
+
+# creating a function to retrieve all manifestos
+
+retrieve_manifesto <- function(manifesto_id) {
+  mp_corpus_df(manifesto_id, translation = "en")
+  
+  write_csv(test, paste0("data/", request$party, "_", request$date, ".csv"))
+}
+
+# generalising to go through all manifestos
+
+# test
+
+for (i in 1:10) {
+  retrieve_manifesto(manifesto_ids[i, 1:2])
+}
+
+results <- vector("list", length = n)
+
+for (i in 1:10) {
+  message("Processing row ", i, " of ", n)
+  
+  res <- tryCatch(
+    retrieve_manifesto(manifesto_ids[i, 1:2]),
+    error = function(e) {
+      message("  -> Error at row ", i, ": ", e$message)
+      return(NULL)
+    }
+  )
+  
+  results[[i]] <- res
+}
+
+
+for (i in 1:nrow(manifesto_ids)) {
+  retrieve_manifesto(manifesto_ids[i, 1:2])
+}
 
 View(test)
 
