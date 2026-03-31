@@ -59,26 +59,37 @@ for (i in 1:10) {
   retrieve_manifesto(manifesto_ids[i, 1:2])
 }
 
-results <- vector("list", length = n)
+results <- vector("list", length = 10)
+
+is_valid <- function(res) {
+  !is.null(res) && nrow(res) > 0
+}
+
+log_df <- data.frame(
+  row = 1:10,
+  status = NA,
+  stringsAsFactors = FALSE
+)
 
 for (i in 1:10) {
-  message("Processing row ", i, " of ", n)
+  message("Retrieving row ", i, " of ", 10)
+  res <- tryCatch(retrieve_manifesto(manifesto_ids[i, 1:2]),
+                      error = function(e) {
+                        message(paste("Error retrieving row ", i, ": ", e$message))
+                        return(NULL)
+                      })
   
-  res <- tryCatch(
-    retrieve_manifesto(manifesto_ids[i, 1:2]),
-    error = function(e) {
-      message("  -> Error at row ", i, ": ", e$message)
-      return(NULL)
-    }
-  )
-  
-  results[[i]] <- res
+  if (!is_valid(res)) {
+    log_df$status[i] <- "no_data"
+    message("  -> No data available")
+  } else {
+    log_df$status[i] <- "success"
+  }
 }
 
+View(log_df)
 
-for (i in 1:nrow(manifesto_ids)) {
-  retrieve_manifesto(manifesto_ids[i, 1:2])
-}
+# Old code ----------
 
 View(test)
 
