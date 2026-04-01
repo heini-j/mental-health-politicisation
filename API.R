@@ -46,14 +46,16 @@ write_csv(test, paste0("data/", request$party, "_", request$date, ".csv"))
 # creating a function to retrieve all manifestos
 
 retrieve_manifesto <- function(manifesto_id) {
-  mp_corpus_df(manifesto_id, translation = "en")
-  
-  write_csv(test, paste0("data/", request$party, "_", request$date, ".csv"))
+  test <- mp_corpus_df(manifesto_id, translation = "en")
+  write_csv(test, paste0("data/", party, "_", request$date, ".csv"))
+  return(test)
 }
 
 # generalising to go through all manifestos
 
 # test
+
+manifesto_ids[10, ]
 
 for (i in 1:10) {
   retrieve_manifesto(manifesto_ids[i, 1:2])
@@ -87,7 +89,8 @@ for (i in 1:10) {
   }
 }
 
-View(log_df)
+
+View(res)
 
 # Old code ----------
 
