@@ -3,6 +3,7 @@ library(dplyr)
 library(stringr)
 library(readr)
 library(tidyr)
+library(ggplot2)
 
 # Connecting to the API --------------
 
@@ -25,7 +26,7 @@ View(main_filtered)
 # Making a list of manifesto id:s to use for later data handling
 
 manifesto_ids <- main_filtered |>
-  select(party, date)
+  select(party, date, countryname)
 
 View(manifesto_ids)
 
@@ -42,30 +43,6 @@ is_valid <- function(result) {
 }
 
 
-
-test <- tryCatch(expr = {res <- mp_corpus_df(request,
-                     translation = "en")
-                  if (is.null(res) || nrow(res) == 0) {
-                    
-                  message("No data for party: ", request$party, ", date: ", request$date)
-                  return(NA)}
-message("Successfully retrieved manifesto for party:", request$party, ", date: ", request$date)
-
-return(res)},
-
-                 error = function(e) {
-                   message("Error retrieving manifesto for ", request$party, " in ", request$date, ": ", e$message)
-                   return(NA)
-                 })
-
-View(test)
-
-?tryCatch
-
-# creating a csv file of the test manifesto
-
-write_csv(test, paste0("data/", request$party, "_", request$date, ".csv"))
-
 # creating a function to retrieve all manifestos
 
 retrieve_manifesto <- function(manifesto_id) {
@@ -73,19 +50,22 @@ retrieve_manifesto <- function(manifesto_id) {
   return(test)
 }
 
-# generalising to go through all manifestos
+# creating an empty file to log the availability of english translation for each manifesto
 
 log_df <- data.frame(
   row = 1:1240,
   party = NA,
   date = NA,
+  countryname = NA,
   status = NA
 )
 
+# looping through all the manifestos and retrieving the data to check availability
 
-for (i in 1:30) {
+for (i in 1:nrow(manifesto_ids)) {
   log_df$party[i] <- manifesto_ids$party[i]
   log_df$date[i] <- manifesto_ids$date[i]
+  log_df$countryname[i] <- manifesto_ids$countryname[i]
   message("Retrieving row ", i)
   res <- retrieve_manifesto(manifesto_ids[i, 1:2])
   if (!is_valid(res)) {
@@ -97,6 +77,9 @@ for (i in 1:30) {
   }
 }
 
-# quite many without english translation -> maybe going through all the files first
+View(log_df)
 
-View(res)
+# saving the log file to avoid having to run the loop again
+
+write_csv(log_df, "data/data_availability.csv")
+
