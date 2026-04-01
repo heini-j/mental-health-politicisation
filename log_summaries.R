@@ -1,7 +1,15 @@
+library(readr)
 library(ggplot2)
 library(dplyr)
+library(cowplot)
 
-# summarising the log
+# reading the data to R -----
+
+log_df <- read_csv("data/log_df.csv")
+
+# summarising the stats ----
+
+# availability of english translations in the whole dataset
 
 log_summary <- log_df |>
   summarise(total = n(),
@@ -9,7 +17,9 @@ log_summary <- log_df |>
             no_data_percentage = sum(status == 0)/total * 100)
 View(log_summary)
 
-# 25 % of manifestos dont have a translation. Checking if there are any patterns
+# 25 % of manifestos dont have a translation
+
+# Checking for patterns ----
 
 # creating a year variable by separating the first 4 digits of the date variable
 
@@ -28,7 +38,7 @@ View(log_summary_year)
 
 # visualising the data availability per year
 
-ggplot(log_summary_year, aes(x = year, y = success_percentage)) +
+year_availablity <- ggplot(log_summary_year, aes(x = year, y = success_percentage)) +
   geom_line(group = 1) +
   geom_point() +
   labs(title = "Percentage of Manifestos with English Translation by Year",
@@ -36,6 +46,8 @@ ggplot(log_summary_year, aes(x = year, y = success_percentage)) +
        y = "Percentage of Success") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggsave("plots/year_availability.png", year_availablity, width = 12, height = 8)
 
 # earlier years have fewer english translations available -> 2005 is last year when total went below 50 %
 
@@ -53,7 +65,7 @@ View(log_summary_country)
 
 # visualising the data availability per country
 
-ggplot(log_summary_country, aes(x = reorder(countryname, -total), y = n_success)) +
+country_availability <- ggplot(log_summary_country, aes(x = reorder(countryname, -total), y = n_success)) +
   geom_bar(stat = "identity", fill = "steelblue") +
   geom_line(aes(y = total, group = 1), color = "red", linewidth = 0.8) +
   geom_point(aes(y = total), color = "red") +
@@ -62,6 +74,10 @@ ggplot(log_summary_country, aes(x = reorder(countryname, -total), y = n_success)
        y = "Percentage of Success") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggsave("plots/country_availability.png", country_availability, width = 12, height = 8)
+
+# croatia and malta don't have any english translations
 
 
 # summarising by country by year
@@ -77,7 +93,7 @@ log_summary_country_year$year <- as.numeric(log_summary_country_year$year)
 
 # visualising the data availability per country per year
 
-ggplot(log_summary_country_year, aes(x = year, y = success_percentage, group = countryname)) +
+year_per_country <- ggplot(log_summary_country_year, aes(x = year, y = success_percentage, group = countryname)) +
   geom_line() +
   geom_point() +
   facet_wrap(~ countryname) +
@@ -93,4 +109,20 @@ ggplot(log_summary_country_year, aes(x = year, y = success_percentage, group = c
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+ggsave("plots/year_per_country.png", year_per_country, width = 12, height = 8)
+
 # ~2010 seems to be the year after which most countries have a good coverage of english translations
+
+# Creating an updated list of manifesto ids to use for data retrieval ----
+
+# Picking only those with english translation available, leaves a decent sample of 923
+
+manifesto_ids_updated <- log_df |>
+  filter(status == 1) |>
+  select(party, date, countryname)
+
+# Saving the updated list of manifesto ids for later use
+
+write_csv(manifesto_ids_updated, "data/manifesto_ids.csv")
+
+
