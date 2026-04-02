@@ -25,13 +25,14 @@ processed_ids <- data.frame(row = 1:923, party = NA, date = NA)
 
 # Looping through all the manifesto ids
 
-for (i in 1) {
+for (i in 752:754) {
   message("Retrieving row ", i)
   tryCatch(expr = {res <- retrieve_manifesto(manifesto_ids[i, 1:2])
-  write_csv(res, paste0("data/", manifesto_ids$party[i], "_", manifesto_ids$date[i], ".csv"))
+  #write_csv(res, paste0("data/", manifesto_ids$party[i], "_", manifesto_ids$date[i], ".csv"))
   message ("Successfully retrieved row ", i)
   }, error = function(e) {
     message("Error retrieving row ", i, ": ", e$message)
+    break
   },
   finally = {
     processed_ids$party[i] <- manifesto_ids$party[i]
@@ -39,4 +40,7 @@ for (i in 1) {
   })
 }
 
+# checking the log
+
+View(processed_ids)
 
