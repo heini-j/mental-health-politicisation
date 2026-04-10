@@ -37,6 +37,8 @@ View(manifesto_ids)
 
 request <- manifesto_ids[3, 1:2]
 
+
+# function for checking if the requested manifesto has an english translation
 is_valid <- function(result) {
   !is.null(result) || nrow(res) > 0
 }
