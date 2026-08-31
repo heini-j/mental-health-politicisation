@@ -1,6 +1,7 @@
 library(readr)
 library(ggplot2)
 library(tidyr)
+library(forcats)
 
 #reading the data to R
 df <- read_csv("data/country_year_counts.csv")
@@ -43,12 +44,24 @@ ggplot(df, aes(x = year, y = count)) +
     axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)
   )
 
-# calculating average number of count per country
+# calculating average number of quasi-sentences per country
 
 
 average_counts <- aggregate(count ~ country, data = df, FUN = mean)
-print(average_counts)
-
+average_counts |> fct_reorder(count)
+average_counts |>
+  ggplot(aes(x = fct_reorder(country, count, .desc = T), y = count)) +
+  geom_col() +
+  geom_hline(
+    yintercept = mean(average_counts$count, na.rm = TRUE),
+    linetype = "dashed"
+  ) +
+  labs(title = "Average manifesto length by country", x = NULL, y = "N of quasi-sentences") +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)
+  )
 
 
 ggplot(average_counts, aes(x = country, y = count)) +
@@ -62,4 +75,21 @@ ggplot(average_counts, aes(x = country, y = count)) +
 
 # a lot of variation in manifesto length 
 
+# Creating a plot of number of manifestos per year in the df
+
+yearly_counts <- df |> 
+  group_by(year) |>
+  summarise(count = n())
+
+
+yearly_counts |> ggplot(aes(x = year, y = count)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Number of manifestos per year", x = NULL, y = NULL) +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)
+  )
+
+n_distinct(df$country)
 
