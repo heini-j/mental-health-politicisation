@@ -96,11 +96,18 @@ View(res)
 
 View(test)
 
-test_belgium <- mp_corpus(countryname == "Belgium", 
-                        translation = "en",
-                        as_tibble = TRUE)
+test <- mp_corpus(countryname == "United Kingdom",
+                  translation = "en",
+                  as_tibble = TRUE) |>
+  filter(200412 < date & date < 200512)
+  
 
-View(test_belgium)
+ireland_2002 <- test |>
+  filter(200112 < date & date < 200212)
+
+test[[1]][1]
+
+View(test)
 
 #saving as a csv for later use
 

@@ -14,7 +14,7 @@ range(df$count)
 # rows 921736 - 921738 UK
 
 # rows 963608 - 963613 Ireland -> manifestos have been coded all in one cell -> 6 parties
-# same w UK -> should remove these
+# same w UK -> should remove these -> make a list of the ids and remove them from the id list
 
 df <- df |>
   filter_out(country == "Ireland" & year == 2002,
