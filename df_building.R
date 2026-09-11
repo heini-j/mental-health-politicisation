@@ -11,12 +11,39 @@ summary <- read_csv("data/summary_nordic.csv")
 
 View(summary)
 
+# Adding some key variables to the summary
+
+summary <- summary |>
+  mutate(
+    party = as.character(substr(manifesto_id, 1,5)),
+    date = substr(manifesto_id, 7, 12),
+    year =  as.integer(substr(manifesto_id, 7, 10)),
+    month = substr(manifesto_id, 11,12),
+    ratio = rows_classified_1/total_rows*100
+  )
+
+summary |> 
+  filter(orig_language == "swedish") |>
+  distinct(year)
+
+# Norwegian elections were 2005, 2009, 2013, 2017 
+# Danish elections 2001, 2005, 2007, 2011, 2015, 2019 -> remove 2007 because it was local?
+#finnish elections 2007, 2011, 2015, 2019
+ # swedish elections 2006, 2010, 2014, 2018, 2022
+
+
+# Checking the number of parties
+parties <- summary |>
+  select("party") |>
+  distinct() |>
+  pull(party)
+
 # The manifesto project main dataset to get the party families and names
 
 manifesto <- read_csv("data/MPDataset_MPDS2026a.csv",
                       col_types = cols(edate = col_character(), 
                                        parfam = col_character())) |>
-  select(c("date", "party", "partyname", "parfam")) |> # We don't need all the columns
+  select(c("date", "party", "partyname", "parfam", "countryname")) |> # We don't need all the columns
   filter(party %in% parties) |>
   mutate(party = as.character(party))
 
@@ -38,30 +65,42 @@ partyfacts <-
                   name_short,
                   country) 
 
-# Loading the CHES scores and renaming to match with the corpus df
-ches <- read_csv("data/1999-2024_CHES_dataset_meansV2.csv") |> 
-  rename(ches = party_id) |>
+# Loading the CHES scores for finland, denmark and sweden (Norway is not in this file)
+ches <- read_csv("data/1999-2024_CHES_dataset_meansV2.csv") |>
+  filter(country %in% c(2, 14, 16),
+         electionyear > 1998) |>
+  mutate(mip_one = as.character(mip_one),
+         mip_two = as.character(mip_two),
+         mip_three = as.character(mip_three)) |>
+  select(!year) |>
+  rename("year" = electionyear)
+
+names(ches)
+
+# Adding Norway separately from the individual rounds of ches
+# Norwegian elections were 2005, 2009, 2013, 2017 
+
+ches_2019 <- read_csv("data/CHES2019V3.csv") |>
+  filter(country == 35) |>
+  mutate(year = 2017)
+
+
+ches_2014 <- read_csv("data/2014_CHES_dataset_means.csv") |>
+  filter(country == 35) |>
+  mutate(year = 2013)
+
+ches_2010 <- read_csv("data/2010_CHES_dataset_means.csv") |>
+  filter(country == 35) |>
+  mutate(year = 2009)
+
+ches_complete <- bind_rows(ches, ches_2019, ches_2014, ches_2010) |>
+  rename("ches" = party_id) |>
   mutate(ches = as.character(ches))
-  
+
+
+View(ches_complete)
 
 # Preparing datasets for combining ---- 
-
-# Adding some key variables to the summary
-
-summary <- summary |>
-  mutate(
-    party = as.character(substr(manifesto_id, 1,5)),
-    date = substr(manifesto_id, 7, 12),
-    year =  as.integer(substr(manifesto_id, 7, 10)),
-    month = substr(manifesto_id, 11,12),
-    ratio = rows_classified_1/total_rows*100
-  )
-
-# Checking the number of parties
-parties <- summary |>
-  select("party") |>
-  distinct() |>
-  pull(party)
 
 # Some parties are listed multiple times due to names in different languages -> combining to one colummn
 
@@ -129,16 +168,27 @@ partyfacts_final <- partyfacts_wider |>
 
 summary_df <- left_join(summary, partyfacts_final, by = c("party", "year"))
 
+
+pf_ches <- left_join(partyfacts_final, ches_complete, by = c("ches", "year")) |>
+  rename("party" = party.x)
+
+complete <- left_join(summary, pf_ches, by = c("party", "year"))
+
+View(complete)
+
+
 # Adding the ches scores to the summary
 
-summary_complete <- left_join(summary_df, ches, by = c("ches", "year")) |>
-  rename("party"=party.x) |>
-  mutate(date = substr(manifesto_id, 7, 12))
+# summary_complete <- left_join(summary_df, ches_complete, by = c("ches", "year")) |>
+  #rename("party"=party.x) |>
+  # mutate(date = substr(manifesto_id, 7, 12))
 
 # Adding party families from the manifesto project to the summary
-summary_complete$date <- as.double(summary_complete$date)
+complete$date <- as.double(complete$date)
 
-summary_complete_final <- left_join(summary_complete, manifesto, by = c("party", "date"))
+summary_complete_final <- left_join(complete, manifesto, by = c("party", "date"))
+
+# removin
 
 # Checking everything looks good
 View(summary_complete_final)
