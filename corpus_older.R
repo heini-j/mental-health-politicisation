@@ -103,6 +103,7 @@ is_valid <- function(res) {
 log_df <- data.frame(
   row = 1:208,
   status = NA,
+  manifesto_id = NA,
   stringsAsFactors = FALSE
 )
 
@@ -118,9 +119,11 @@ for (i in 1:nrow(manifesto_ids)) {
   
   if (!is_valid(res)) {
     log_df$status[i] <- "no_data"
+    log_df$manifesto_id[i] <- paste0(manifesto_ids$party[i], "_", manifesto_ids$date[i])
     message("  -> No data available")
   } else {
     log_df$status[i] <- "success"
+    log_df$manifesto_id[i] <- paste0(manifesto_ids$party[i], "_", manifesto_ids$date[i])
   }
 }
 
