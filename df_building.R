@@ -16,7 +16,7 @@ View(summary)
 summary <- summary |>
   mutate(
     year =  as.integer(substr(date, 1, 4)),
-    month = substr(date, 11,12),
+    month = substr(date, 5,6),
     ratio = rows_classified_1/total_rows*100
   ) |>
   rename("manifesto" = "party")
@@ -25,31 +25,32 @@ names(summary)
 
 # Checking the number of parties
 parties <- summary |>
-  select("party") |>
+  select("manifesto") |>
   distinct() |>
-  pull(party)
+  pull(manifesto)
 
 # The manifesto project main dataset to get the party families and names
 
 manifesto <- read_csv("data/MPDataset_MPDS2026a.csv",
                       col_types = cols(edate = col_character(), 
                                        parfam = col_character())) |>
-  select(c("date", 
-           "party", 
-           "partyname", 
-           "MP_parfam" = "parfam", 
-           "countryname",
-           "MP_pervote" = "pervote",
-           "MP_totseats" = "totseats",
-           "MP_human_rights" = "per201",
-           "MP_keynesian"= "per409",
-           "MP_equality" = "per503",
-           "MP_welfare_exp" = "per504",
-           "MP_welfare_lim" = "per505",
-           "MP_labourgroups" = "per701",
-           "MP_minorities" = "per705")) |> # We don't need all the columns
-  filter(party %in% parties) |>
-  mutate(party = as.character(party))
+  select("date",
+         "manifesto" = "party", 
+         "partyname", 
+         "MP_parfam" = "parfam", 
+         "countryname",
+         "MP_pervote" = "pervote",
+         "MP_totseats" = "totseats",
+         "MP_human_rights" = "per201",
+         "MP_keynesian"= "per409",
+         "MP_equality" = "per503",
+         "MP_welfare_exp" = "per504",
+         "MP_welfare_lim" = "per505",
+         "MP_labourgroups" = "per701",
+         "MP_minorities" = "per705") |> # We don't need all the columns
+  filter(manifesto %in% parties) |>
+  mutate(manifesto = as.character(manifesto),
+         )
 
 
 View(manifesto)
@@ -73,6 +74,7 @@ partyfacts <-
 ches <- read_csv("data/1999-2024_CHES_dataset_meansV2.csv") |>
   filter(country %in% c(2, 14, 16), # Sweden, Finland, Denmark
          electionyear > 1998) |>
+  filter_out(country == 14 & year == 2002) |> # ches was conducted twice during the election round, filtering out the one further from the election date
   select("year" = "electionyear",
          "ches" = "party_id",
          "govt",
@@ -86,6 +88,8 @@ ches <- read_csv("data/1999-2024_CHES_dataset_meansV2.csv") |>
          "sociallifestyle",
          "womens_rights",
          "regions")
+
+
 
 
 
@@ -218,9 +222,15 @@ partyfacts_final <- partyfacts_wider |>
 
 # Adding partyfacts ids to the summary
 
-summary_df <- left_join(summary, partyfacts_final, by = c("manifesto", "year"))
+summary_w_ids <- left_join(summary, partyfacts_final, by = c("manifesto", "year"))
 
-complete <- left_join(summary_df, ches_complete, by = c("ches", "year"))
+summary_w_manifesto <- left_join(summary_w_ids, manifesto, by = c("manifesto", "date"))
+
+
+# for green party there are two values for ches for the same year, because the ches was conducted in 1999 and in 2002
+
+complete <- left_join(summary_w_manifesto, ches_complete, by = c("ches", "year"),
+                    relationship = "one-to-one")
 
 # Sacing the final dataset for later use -----
 
