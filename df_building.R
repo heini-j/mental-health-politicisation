@@ -7,7 +7,7 @@ library(purrr)
 
 # Summary data for the LLM scores of the manifesto documents
 
-summary <- read_csv("data/summary_nordic.csv")
+summary <- read_csv("data/manifestos_summary.csv", col_types = cols(party = col_character()))
 
 View(summary)
 
@@ -15,22 +15,13 @@ View(summary)
 
 summary <- summary |>
   mutate(
-    party = as.character(substr(manifesto_id, 1,5)),
-    date = substr(manifesto_id, 7, 12),
-    year =  as.integer(substr(manifesto_id, 7, 10)),
-    month = substr(manifesto_id, 11,12),
+    year =  as.integer(substr(date, 1, 4)),
+    month = substr(date, 11,12),
     ratio = rows_classified_1/total_rows*100
-  )
+  ) |>
+  rename("manifesto" = "party")
 
-summary |> 
-  filter(orig_language == "swedish") |>
-  distinct(year)
-
-# Norwegian elections were 2005, 2009, 2013, 2017 
-# Danish elections 2001, 2005, 2007, 2011, 2015, 2019 -> remove 2007 because it was local?
-#finnish elections 2007, 2011, 2015, 2019
- # swedish elections 2006, 2010, 2014, 2018, 2022
-
+names(summary)
 
 # Checking the number of parties
 parties <- summary |>
@@ -43,7 +34,20 @@ parties <- summary |>
 manifesto <- read_csv("data/MPDataset_MPDS2026a.csv",
                       col_types = cols(edate = col_character(), 
                                        parfam = col_character())) |>
-  select(c("date", "party", "partyname", "parfam", "countryname")) |> # We don't need all the columns
+  select(c("date", 
+           "party", 
+           "partyname", 
+           "MP_parfam" = "parfam", 
+           "countryname",
+           "MP_pervote" = "pervote",
+           "MP_totseats" = "totseats",
+           "MP_human_rights" = "per201",
+           "MP_keynesian"= "per409",
+           "MP_equality" = "per503",
+           "MP_welfare_exp" = "per504",
+           "MP_welfare_lim" = "per505",
+           "MP_labourgroups" = "per701",
+           "MP_minorities" = "per705")) |> # We don't need all the columns
   filter(party %in% parties) |>
   mutate(party = as.character(party))
 
@@ -67,34 +71,83 @@ partyfacts <-
 
 # Loading the CHES scores for finland, denmark and sweden (Norway is not in this file)
 ches <- read_csv("data/1999-2024_CHES_dataset_meansV2.csv") |>
-  filter(country %in% c(2, 14, 16),
+  filter(country %in% c(2, 14, 16), # Sweden, Finland, Denmark
          electionyear > 1998) |>
-  mutate(mip_one = as.character(mip_one),
-         mip_two = as.character(mip_two),
-         mip_three = as.character(mip_three)) |>
-  select(!year) |>
-  rename("year" = electionyear)
+  select("year" = "electionyear",
+         "ches" = "party_id",
+         "govt",
+         "lrgen",
+         "lrecon",
+         "galtan",
+         "spendvtax",
+         "spendvtax_salience",
+         "redistribution",
+         "redist_salience",
+         "sociallifestyle",
+         "womens_rights",
+         "regions")
 
-names(ches)
+
+
+View(ches)
 
 # Adding Norway separately from the individual rounds of ches
 # Norwegian elections were 2005, 2009, 2013, 2017 
 
+# commenting out the items that were not asked in the 2019 survey
+
 ches_2019 <- read_csv("data/CHES2019V3.csv") |>
   filter(country == 35) |>
-  mutate(year = 2017)
+  select("ches" = "party_id",
+         # "govt",
+         "lrgen",
+         "lrecon",
+         "galtan",
+         "spendvtax",
+         # "spendvtax_salience",
+         "redistribution",
+         "redist_salience",
+         "sociallifestyle",
+         # "womens_rights",
+         "regions") |>
+  mutate(year = 2017) 
+
+names(ches_2019)
 
 
 ches_2014 <- read_csv("data/2014_CHES_dataset_means.csv") |>
   filter(country == 35) |>
-  mutate(year = 2013)
+  select("ches" = "party_id",
+         # "govt",
+         "lrgen",
+         "lrecon",
+         "galtan",
+         "spendvtax",
+         # "spendvtax_salience",
+         "redistribution",
+         # "redist_salience",
+         "sociallifestyle",
+         # "womens_rights",
+         "regions") |>
+  mutate(year = 2013) 
 
 ches_2010 <- read_csv("data/2010_CHES_dataset_means.csv") |>
   filter(country == 35) |>
+  select("ches" = "party_id",
+         # "govt",
+         "lrgen",
+         "lrecon",
+         "galtan",
+         "spendvtax",
+         "spendvtax_salience",
+         "redistribution",
+         "redist_salience",
+         "sociallifestyle",
+         # "womens_rights",
+         "regions") |>
   mutate(year = 2009)
 
 ches_complete <- bind_rows(ches, ches_2019, ches_2014, ches_2010) |>
-  rename("ches" = party_id) |>
   mutate(ches = as.character(ches))
 
 
@@ -158,44 +211,20 @@ partyfacts_wider <- partyfacts_wider |>
 # removing lines where either ches or manifesto is NA - those cannot be used for combining
 
 partyfacts_final <- partyfacts_wider |>
-  filter_out(is.na(manifesto) | is.na(ches)) |>
-  rename("party" = manifesto) # renaming to match with the summary file
+  filter_out(is.na(manifesto) | is.na(ches)) 
 
 
 # Combining the datasets ------
 
 # Adding partyfacts ids to the summary
 
-summary_df <- left_join(summary, partyfacts_final, by = c("party", "year"))
+summary_df <- left_join(summary, partyfacts_final, by = c("manifesto", "year"))
 
+complete <- left_join(summary_df, ches_complete, by = c("ches", "year"))
 
-pf_ches <- left_join(partyfacts_final, ches_complete, by = c("ches", "year")) |>
-  rename("party" = party.x)
+# Sacing the final dataset for later use -----
 
-complete <- left_join(summary, pf_ches, by = c("party", "year"))
-
-View(complete)
-
-
-# Adding the ches scores to the summary
-
-# summary_complete <- left_join(summary_df, ches_complete, by = c("ches", "year")) |>
-  #rename("party"=party.x) |>
-  # mutate(date = substr(manifesto_id, 7, 12))
-
-# Adding party families from the manifesto project to the summary
-complete$date <- as.double(complete$date)
-
-summary_complete_final <- left_join(complete, manifesto, by = c("party", "date"))
-
-# removin
-
-# Checking everything looks good
-View(summary_complete_final)
-
-# Saving the combined summary ----
-
-write_csv(summary_complete_final, "data/summary_df.csv")
+write_csv(complete, "data/summary_df.csv")
 
 
 

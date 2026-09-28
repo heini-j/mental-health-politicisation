@@ -76,7 +76,7 @@ View(summary_df)
 
 # Saving the dataframe for later use
 
-write_csv(summary_df, "data/summary.csv")
+write_csv(summary_df, "data/manifestos_summary.csv")
 
 # Collecting all mental health content ------
 
