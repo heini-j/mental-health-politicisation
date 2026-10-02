@@ -3,6 +3,11 @@ library(ggplot2)
 library(dplyr)
 library(purrr)
 
+#' This code is for combining the summary of encoded manifesto documents 
+#' with the some variables from the main Manifesto dataset and the CHES dataset.
+#' The combining uses a third dataset, "partyfacts", which hhas the party ids for both 
+#' the Manifesto project and the CHES dataset.
+
 # reading the data to R ------
 
 # Summary data for the LLM scores of the manifesto documents
@@ -75,7 +80,9 @@ ches <- read_csv("data/1999-2024_CHES_dataset_meansV2.csv") |>
   filter(country %in% c(2, 14, 16), # Sweden, Finland, Denmark
          electionyear > 1998) |>
   filter_out(country == 14 & year == 2002) |> # ches was conducted twice during the election round, filtering out the one further from the election date
-  select("year" = "electionyear",
+  select("country",
+         "electionyear",
+         #"year" = "electionyear",
          "ches" = "party_id",
          "govt",
          "lrgen",
@@ -89,13 +96,9 @@ ches <- read_csv("data/1999-2024_CHES_dataset_meansV2.csv") |>
          "womens_rights",
          "regions")
 
-
-
-
-
 View(ches)
 
-# Adding Norway separately from the individual rounds of ches
+# Adding Norway data separately from the individual rounds of ches
 # Norwegian elections were 2005, 2009, 2013, 2017 
 
 # commenting out the items that were not asked in the 2019 survey
