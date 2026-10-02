@@ -4,6 +4,13 @@ library(readr)
 library(tidyr)
 library(tibble)
 
+#' This code is for checking retrieving all the manifesto documents that have been previously
+#' logged as "available". The function retrieve_manifesto is used to call the API and request
+#' a manifesto based on its manifesto id, comprised of party code and a date of the election in MM YYYY
+#' All quasi-sentences from the manifestos are stored in a dataframe called texts_for_sampling,
+#' which is then used to sample for the LLM tests.  
+
+
 # Connecting to the API --------------
 
 # Setting the API key
@@ -13,16 +20,19 @@ mp_setapikey("manifesto_apikey.txt")
 
 manifesto_ids <- read_csv("data/manifesto_ids.csv")
 
-# Creating a loop to retrieve the corpus ----
+# Creating a function to retrieve a manifesto from the corpus ----
 
 retrieve_manifesto <- function(manifesto_id) {
   result <- mp_corpus_df(manifesto_id, translation = "en")
   return(result)
 }
 
-# Creating an empty df to store the processed ids
+# Creating an empty df to log which ids have been processed
 
 processed_ids <- data.frame(row = 1:923, party = NA, date = NA)
+
+# creating a dataframe to store all the texts from the manifestos for future use
+
 texts_for_sampling <- data.frame(text=character())
 
 # Looping through all the manifesto ids
@@ -44,15 +54,13 @@ for (i in 752:754) {
   })
 }
 
-colnames(manifesto_ids)
-
-
-write_csv(texts_for_sampling, paste0("data/all_texts.csv"))
-
-?write_csv
-
 # checking the log
 
 View(processed_ids)
 
-?mp_setapikey
+
+# Saving all the texts from the manifestos to a csv file for later use in sampling
+
+write_csv(texts_for_sampling, paste0("data/all_texts.csv"))
+
+
