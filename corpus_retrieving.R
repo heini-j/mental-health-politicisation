@@ -27,17 +27,19 @@ retrieve_manifesto <- function(manifesto_id) {
   return(result)
 }
 
+# Creating necessary dfs -----
+
 # Creating an empty df to log which ids have been processed
 
-processed_ids <- data.frame(row = 1:923, party = NA, date = NA)
+processed_ids <- data.frame(row = 1:nrow(manifesto_ids), party = NA, date = NA)
 
 # creating a dataframe to store all the texts from the manifestos for future use
 
 texts_for_sampling <- data.frame(text=character())
 
-# Looping through all the manifesto ids
+# Looping through all the manifesto ids ----
 
-for (i in 752:754) {
+for (i in 1:nrow(manifesto_ids)) {
   message("Retrieving row ", i)
   tryCatch(expr = {res <- retrieve_manifesto(manifesto_ids[i, 1:2])
   #write_csv(res, paste0("data/", manifesto_ids$party[i], "_", manifesto_ids$date[i], ".csv"))
