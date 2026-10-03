@@ -3,6 +3,8 @@ library(car)
 library(ggplot2)
 library(paletteer)
 library(cowplot)
+library(gtsummary)
+library(apaTables)
 
 summary_df <- read_csv("data/summary_df.csv",
                        col_types = cols(party_id = col_character(), 
@@ -48,8 +50,24 @@ outlier <- summary_df |>
    filter(ratio >= 0.5) |>
    select(manifesto_id) # one outlier in the ratio variable
 
+parfams <- summary_df |> 
+  distinct(MP_parfam) |> 
+  pull(MP_parfam) |>
+  sort()
+
+
 summary_df_clean <- summary_df |>
-  filter_out(ratio >= 0.5)
+  filter_out(ratio >= 0.5)  |> 
+  mutate(MP_parfam = factor(
+    MP_parfam,
+    levels = parfams,
+    labels = c("ECO", "LEFT", "SOSDEM", "LIB", "CHR", "CON", "NAT", "AGR", "ETH")
+  )) |>
+  select(-c(MP_keynesian, MP_welfare_lim, MP_minorities))
+
+
+continuous_vars <- names(summary_df_clean)[sapply(summary_df, is.numeric)]
+
 
 
 plot <- summary_df_clean |>
@@ -92,16 +110,31 @@ missing_closer <- summary_df_clean |>
 
 View(missing_closer)
 
-# Creating a correlation table for the missing variables
+# Creating a descriptives table for the variables of interest
+
+summary_df_clean <- summary_df |>
+  filter(year>1998) |>
+  filter(ratio < 0.5)
+
+summary_table <- summary_df_clean |>
+  group_by(countryname) |>
+  select(-c(manifesto_id, party_id, date, partyname)) |>
+  tbl_summary(
+    statistic = list(all_continuous() ~ "{mean} ({sd})"),
+    missing = "no")
+
+summary_table |>
+  as_tibble() |>
+  write_excel_csv("data/descriptives_table.csv")
 
 
+continuous_vars <- summary_df_clean |>
+  select(year, ratio, lrecon, lrgen, galtan, redistribution, MP_pervote, MP_totseats, MP_welfare_exp)
 
-
-
-# VIsualising all variables for checks
-
-
-
+apa.cor.table(continuous_vars, 
+              filename = "data/correlation_table.doc",
+              show.sig.stars = TRUE,
+              landscape = TRUE)
 
 # LOESS estimation for robustness to see if translated vs non-translated documents have different variation 
 variance <- summary_df |>
