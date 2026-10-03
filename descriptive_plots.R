@@ -10,12 +10,12 @@ library(cowplot)
 # NOtes: country has NAs, there is one outlier in the ratio variable (Sweden 1964) -> will be removed in the analysis.
 # opposition vs government pov
 
-summary_df <- read_csv("data/summary_df.csv")
+summary_df <- read_csv("data/summary_df.csv",
+                       col_types = cols(party_id = col_character(), 
+                                        month = col_number(), MP_parfam = col_character()))
 
 View(summary_df)
 
-summary_df <- summary_df |>
-  filter_out(ratio > 10) # removing the outlier in the ratio variable (Sweden 1964)
 
 
 # Creating a table showing the number of manifesto documents by country by year
@@ -76,7 +76,7 @@ summary_plot <- rows_summary |>
         axis.text.x = element_text(angle = 45, hjust = 1))
 
 
-save_plot("plots/document_summary.png", summary_plot, base_height = 10, base_width = 16)
+save_plot("plots/document_summary.png", summary_plot, base_height = 6, base_width = 10)
 
   
 # plotting the ratio over time 
@@ -85,7 +85,6 @@ parfams <- summary_df |>
   distinct(MP_parfam) |> 
   pull(MP_parfam) |>
   sort()
-
 
 
 summary_df <- summary_df |>
@@ -111,65 +110,45 @@ summary_df |>
   theme(legend.position = "bottom")
 
 
-# Plotting the average ratio over years in a line plot
 
-summary_years <- summary_df |>
-  group_by(year, countryname, MP_parfam, partyname) |>
-  summarise(avg_ratio = mean(ratio))
+# Generating histograms and bar plots of all variables
 
-summary_years |> 
-  filter(countryname == "Finland") |>
-  #filter(year > 1998) |>
-  ggplot(aes(x=year, y = avg_ratio)) +
-  #geom_line()+
-  #geom_smooth(method = "loess", se = T, color = "blue") +
-  geom_point(alpha = 0.6)+
-  #facet_wrap(~countryname)+
-  scale_y_continuous(limits = c(0,6)) +
-  labs(title = "x",
-       x = NULL,
-       y = "Average ratio of Classified Rows") +
-  theme_minimal() 
+continuous_vars <- names(summary_df)[sapply(summary_df, is.numeric)]
 
-# regression analysis 
+categorical_vars <- c(summary_df$orig_language, summary_df$countryname, summary_df$MP_parfam)
 
-model <- lm(ratio ~ year + countryname + year * countryname, data = summary_df)
+# Histograms for the numerical variables
 
-summary(model)
-
-# making a scatter plot of the ratio and lrgen variables
-
-summary_df |>
-  filter(translated == T) |>
-  ggplot(aes(x=lrecon, y = ratio)) +
-  geom_point() +
-  #facet_wrap(~countryname) +
-  geom_smooth(method = "lm", se = T, color = "blue") +
-  scale_y_continuous(limits = c(0,6))
+create_hist <- function(variable) {
+  p <- ggplot(summary_df, aes(x= .data[[variable]])) +
+    geom_histogram() +
+    theme_minimal()
+  
+  save_plot(paste0("plots/descriptives/", variable, "_histogram.png"), p, base_width = 6, base_height = 4)
+}
 
 
+# looping through the columns to create histograms for each variable
+
+for (var in continuous_vars[3:length(continuous_vars)]) {
+  create_hist(var)
+}
+
+# Bar plots for the categorical variables
+
+create_bar <- function(variable) {
+  p <- ggplot(summary_df, aes(x= .data[[variable]])) +
+    geom_bar() +
+    theme_minimal()
+  
+  save_plot(paste0("plots/descriptives/", variable, "_barplot.png"), p, base_width = 6, base_height = 4)
+}
+
+# Looping through the categorical variables to create bar plots
+
+for (var in categorical_vars) {
+  create_bar(var)
+}  
 
 
 
-df_method1 <- summary_df |> filter(countryname == "Sweden", translated == TRUE, year < 2015)
-df_method2 <- summary_df |> filter(countryname == "Sweden", translated == FALSE, year >1985)
-
-fit1 <- loess(ratio ~ year, data = df_method1, span = 0.9)
-fit2 <- loess(ratio ~ year, data = df_method2, span = 0.9)
-
-df_method1$clean_value <- residuals(fit1)
-df_method2$clean_value <- residuals(fit2)
-
-df_clean <- bind_rows(df_method1, df_method2)
-
-leveneTest(clean_value ~ as.factor(translated), data = df_clean, center = median)
-
-
-ggplot(df_clean, aes(x = year, y = clean_value, color = translated)) +
-  geom_point(alpha = 0.7) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
-  geom_smooth(method = "lm") +
-  facet_wrap(~ translated, scales = "free_x") +
-  labs(title = "Detrended Residuals Over Time",
-       x = "Year", y = "Residual Value (Cleaned)") +
-  theme_minimal()
