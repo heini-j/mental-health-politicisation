@@ -1,6 +1,7 @@
 library(readr)
 library(ggplot2)
 library(dplyr)
+library(tidyr)
 library(purrr)
 
 #' This code is for combining the summary of encoded manifesto documents 
@@ -12,7 +13,7 @@ library(purrr)
 
 # Summary data for the LLM scores of the manifesto documents
 
-summary <- read_csv("data/manifestos_summary.csv", col_types = cols(party = col_character()))
+summary <- read_csv("data/summary.csv", col_types = cols(party = col_character()))
 
 View(summary)
 
@@ -22,7 +23,7 @@ summary <- summary |>
   mutate(
     year =  as.integer(substr(date, 1, 4)),
     month = substr(date, 5,6),
-    ratio = rows_classified_1/total_rows*100
+    ratio = rows_classified_1/total_rows
   ) |>
   rename("manifesto" = "party")
 
@@ -78,23 +79,24 @@ partyfacts <-
 # Loading the CHES scores for finland, denmark and sweden (Norway is not in this file)
 ches <- read_csv("data/1999-2024_CHES_dataset_meansV2.csv") |>
   filter(country %in% c(2, 14, 16), # Sweden, Finland, Denmark
-         electionyear > 1998) |>
-  filter_out(country == 14 & year == 2002) |> # ches was conducted twice during the election round, filtering out the one further from the election date
-  select("country",
-         "electionyear",
-         #"year" = "electionyear",
-         "ches" = "party_id",
-         "govt",
-         "lrgen",
-         "lrecon",
-         "galtan",
-         "spendvtax",
-         "spendvtax_salience",
-         "redistribution",
-         "redist_salience",
-         "sociallifestyle",
-         "womens_rights",
-         "regions")
+         year %in% c(2006, 2002, 1999)) |>
+           select("country",
+                  "year",
+                  "ches" = "party_id",
+                  "lrgen",
+                  "lrecon",
+                  "galtan",
+                  "spendvtax",
+                  "redistribution") |>
+  mutate(year = replace_when(year, year == 2006 & country == 2 ~ 2007),
+         year = replace_when(year, year == 2006 & country == 14 ~ 2007),
+         year = replace_when(year, year == 2006 & country == 16 ~ 2006),
+         year = replace_when(year, year == 2002 & country == 2 ~ 2001),
+         year = replace_when(year, year == 2002 & country == 14 ~ 2003),
+         year = replace_when(year, year == 2002 & country == 16 ~ 2002),
+         year = replace_when(year, year == 1999 & country == 14 ~ 1999)
+         ) |>
+           select(-country)
 
 View(ches)
 
@@ -103,56 +105,77 @@ View(ches)
 
 # commenting out the items that were not asked in the 2019 survey
 
-ches_2019 <- read_csv("data/CHES2019V3.csv") |>
-  filter(country == 35) |>
+ches_2024 <- read_csv("data/CHES_2024_final_v2.csv") |>
+  filter(country == 16) |>
   select("ches" = "party_id",
-         # "govt",
          "lrgen",
          "lrecon",
          "galtan",
          "spendvtax",
-         # "spendvtax_salience",
-         "redistribution",
-         "redist_salience",
-         "sociallifestyle",
-         # "womens_rights",
-         "regions") |>
-  mutate(year = 2017) 
+         "redistribution") |>
+  mutate(year = 2022)
 
-names(ches_2019)
+
+View(ches_2024)
+
+ches_2019 <- read_csv("data/CHES2019V3.csv") |>
+  filter(country %in% c(2, 14, 16, 35)) |>
+  select("country",
+  "ches" = "party_id",
+         "lrgen",
+         "lrecon",
+         "galtan",
+         "spendvtax",
+         "redistribution") |>
+  mutate(
+    year = case_when(country == 2 ~ 2019,
+                     country == 14 ~ 2019,
+                     country == 16 ~ 2018, 
+                     country == 35 ~ 2017)
+  ) |>
+  select(-country)
+
+View(ches_2019)
 
 
 ches_2014 <- read_csv("data/2014_CHES_dataset_means.csv") |>
-  filter(country == 35) |>
+  filter(country %in% c(2, 14, 16, 35)) |>
   select("ches" = "party_id",
-         # "govt",
+         "country",
          "lrgen",
          "lrecon",
          "galtan",
          "spendvtax",
-         # "spendvtax_salience",
-         "redistribution",
-         # "redist_salience",
-         "sociallifestyle",
-         # "womens_rights",
-         "regions") |>
-  mutate(year = 2013) 
+         "redistribution") |>
+  mutate(
+    year = case_when(country  == 2 ~ 2015,
+                     country == 14 ~ 2015,
+                     country == 16 ~ 2014,
+                     country == 35 ~ 2013)
+  ) |>
+  select(-country)
+
+View(ches_2014)
 
 ches_2010 <- read_csv("data/2010_CHES_dataset_means.csv") |>
-  filter(country == 35) |>
+  filter(country %in% c(2, 14, 16, 35))  |>
   select("ches" = "party_id",
-         # "govt",
+         "country",
          "lrgen",
          "lrecon",
          "galtan",
          "spendvtax",
-         "spendvtax_salience",
-         "redistribution",
-         "redist_salience",
-         "sociallifestyle",
-         # "womens_rights",
-         "regions") |>
-  mutate(year = 2009)
+         "redistribution") |>
+  mutate(
+    year = case_when(country == 2 ~ 2011,
+                     country == 14 ~ 2011,
+                     country == 16 ~ 2010,
+                     country == 35 ~ 2009) 
+  ) |>
+  select(-country)
+
+ 
+View(ches_2010) 
 
 ches_complete <- bind_rows(ches, ches_2019, ches_2014, ches_2010) |>
   mutate(ches = as.character(ches))
@@ -234,6 +257,9 @@ summary_w_manifesto <- left_join(summary_w_ids, manifesto, by = c("manifesto", "
 
 complete <- left_join(summary_w_manifesto, ches_complete, by = c("ches", "year"),
                     relationship = "one-to-one")
+
+
+View(complete)
 
 # Sacing the final dataset for later use -----
 
