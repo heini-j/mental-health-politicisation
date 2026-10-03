@@ -261,10 +261,15 @@ complete <- left_join(summary_w_manifesto, ches_complete, by = c("ches", "year")
 
 View(complete)
 
-# Sacing the final dataset for later use -----
+# Removing the columns that are not needed for analysis
+
+complete <- complete |>
+  select(-c(partyfacts_id, ches)) |>
+  rename("party_id" = "manifesto")
+
+# Saving the final dataset for later use -----
 
 write_csv(complete, "data/summary_df.csv")
-
 
 
 
