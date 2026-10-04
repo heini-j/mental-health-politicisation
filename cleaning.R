@@ -32,6 +32,23 @@ summary_df_clean <- summary_df |>
   filter(ratio < 0.5) # removing one outlier in the ratio variable
 
 
+# Adding the party family labels to the data
+
+parfams <- summary_df |> 
+  distinct(MP_parfam) |> 
+  pull(MP_parfam) |>
+  sort()
+
+
+summary_df_clean <- summary_df_clean |>
+  mutate(MP_parfam = factor(
+    MP_parfam,
+    levels = parfams,
+    labels = c("ECO", "LEFT", "SOSDEM", "LIB", "CHR", "CON", "NAT", "AGR", "ETH")
+  ))
+
+# Saving the clean dataset
+
 write_csv(summary_df_clean, "data/clean_summary.csv")
 
 
