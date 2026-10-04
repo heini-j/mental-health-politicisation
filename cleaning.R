@@ -27,14 +27,14 @@ summary_df_clean <- summary_df |>
          lrgen = 10- lrgen,
          lrecon = 10 - lrecon, 
          redistribution = 10- redistribution,
-         spendvtax = 10 - spendvtax)
-         |> # reversing the right left to match with the CHES variables
+         spendvtax = 10 - spendvtax) |>
+          # reversing the right left to match with the CHES variables
   filter(ratio < 0.5) # removing one outlier in the ratio variable
 
 
 # Adding the party family labels to the data
 
-parfams <- summary_df |> 
+parfams <- summary_df_clean |> 
   distinct(MP_parfam) |> 
   pull(MP_parfam) |>
   sort()
@@ -47,9 +47,17 @@ summary_df_clean <- summary_df_clean |>
     labels = c("ECO", "LEFT", "SOSDEM", "LIB", "CHR", "CON", "NAT", "AGR", "ETH")
   ))
 
+
+# Removing variables that had very low number of observations that were not 0
+
+summary_df_final <- summary_df_clean |>
+  select(-c(MP_keynesian, MP_welfare_lim, MP_minorities))
+
+
+
 # Saving the clean dataset
 
-write_csv(summary_df_clean, "data/clean_summary.csv")
+write_csv(summary_df_final, "data/clean_summary.csv")
 
 
 
