@@ -169,7 +169,7 @@ save_plot("plots/document_summary.png", summary_plot, base_height = 6, base_widt
  # Selecting variables for a correlation table
  
  correlation_vars <- summary_df |>
-   select(c("ratio", 
+   select(c("ratio",
             "year", 
             "MP_rightleft", 
             "lrgen", 
