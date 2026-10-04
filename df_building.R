@@ -22,9 +22,7 @@ View(summary)
 summary <- summary |>
   mutate(
     year =  as.integer(substr(date, 1, 4)),
-    month = substr(date, 5,6),
-    ratio = rows_classified_1/total_rows
-  ) |>
+    month = substr(date, 5,6)) |>
   rename("manifesto" = "party")
 
 names(summary)
@@ -178,7 +176,7 @@ ches_2010 <- read_csv("data/2010_CHES_dataset_means.csv") |>
  
 View(ches_2010) 
 
-ches_complete <- bind_rows(ches, ches_2019, ches_2014, ches_2010) |>
+ches_complete <- bind_rows(ches, ches_2024, ches_2019, ches_2014, ches_2010) |>
   mutate(ches = as.character(ches))
 
 

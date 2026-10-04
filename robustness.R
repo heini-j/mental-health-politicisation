@@ -1,20 +1,28 @@
 library(dplyr)
+library(readr)
+library(ggplot2)
 library(car)
+library(paletteer)
+
+
+summary_df <- read_csv("data/clean_summary.csv",
+                       col_types = cols(party_id = col_character(), 
+                                        month = col_number(), MP_parfam = col_character()))
 
 # LOESS estimation for robustness to see if translated vs non-translated documents have different variation 
 variance <- summary_df |>
-  filter(countryname == "Finland") |>
-  filter(year >= 1960) |>
+  #filter(countryname == "Finland") |>
+  filter(year >= 1999) |>
   ggplot(aes(x = year, y = ratio
              #, color = translated
   )) +
   geom_point(alpha=0.7)+
   geom_smooth(method = "lm") +
-  #facet_wrap(~countryname)+
+  facet_wrap(~countryname)+
   #geom_vline(xintercept = 1970)+
   labs(title = NULL,
        x = NULL,
-       y = "% of quasi-sentences") +
+       y = "ratio") +
   theme_minimal() +
   scale_color_paletteer_d("nbapalettes::sixers_retro")+
   theme(legend.position = "bottom",
@@ -24,13 +32,13 @@ save_plot("plots/translation_variance.png", variance, base_width = 6, base_heigh
 
 
 df_method1 <- summary_df |> 
-  filter(countryname == "Finland") |>
-  filter(translated == TRUE) |>
+  #filter(countryname == "Finland") |>
+  filter(translated == FALSE) #|>
   mutate("method" = 1)
 
 
 df_method2 <- summary_df |> 
-  filter(countryname %in% c("Denmark", "Sweden", "Norway")) |> 
+  #filter(countryname %in% c("Denmark", "Sweden", "Norway")) |> 
   filter(translated == TRUE
          #,year >= 1995
   ) |>
@@ -44,14 +52,14 @@ df_method2$clean_value <- residuals(fit2)
 
 df_clean <- bind_rows(df_method1, df_method2)
 
-leveneTest(clean_value ~ as.factor(method), data = df_clean, center = median)
+leveneTest(clean_value ~ as.factor(translated), data = df_clean, center = median)
 
 
 ggplot(df_clean, aes(x = year, y = clean_value)) +
   geom_point(alpha = 0.7) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
   geom_smooth(method = "lm") +
-  facet_wrap(~ method, scales = "free_x") +
+  facet_wrap(~ translated, scales = "free_x") +
   labs(title = "Detrended Residuals Over Time",
        x = "Year", y = "Residual Value (Cleaned)") +
   theme_minimal()
