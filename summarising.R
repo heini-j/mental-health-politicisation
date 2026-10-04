@@ -101,7 +101,7 @@ View(all_mental_health)
 
 
 # Save the result
-write_csv(all_mental_health, "all_mental_health.csv")
+write_csv(all_mental_health, "data/all_mental_health.csv")
 
 # Uncoded rows ------
 
@@ -111,7 +111,7 @@ write_csv(all_mental_health, "all_mental_health.csv")
 uncoded <- lapply(files, function(file) {
   
   df <- read_csv(file, show_col_types = FALSE) |>
-    select(text, party, date, language, predicted_score)
+    select(manifesto_id, text, party, date, language, predicted_score)
   
   df |> 
     
@@ -121,7 +121,14 @@ uncoded <- lapply(files, function(file) {
     )
 })
 
-uncoded <- list_rbind(uncoded)
+uncoded <- list_rbind(uncoded) |>
+  group_by(manifesto_id) |>
+  summarise(
+    uncoded_rows = n()
+  )
+
 
 View(uncoded) # 13 rows that were not coded
+
+write_csv(uncoded, "data/uncoded_rows.csv")
 
