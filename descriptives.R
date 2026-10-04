@@ -7,9 +7,10 @@ library(car)
 library(cowplot)
 library(gtsummary)
 
+#' This code generates descriptive statistics and plots of all the variables. 
 
-# NOtes: country has NAs, there is one outlier in the ratio variable (Sweden 1964) -> will be removed in the analysis.
-# opposition vs government pov
+
+# Reading the clean df to R
 
 summary_df <- read_csv("data/clean_summary.csv",
                        col_types = cols(party_id = col_character(), 
@@ -18,23 +19,15 @@ summary_df <- read_csv("data/clean_summary.csv",
 View(summary_df)
 
 
-
 # Plotting all variables ----
 
-# Generating histograms and bar plots of all variables
+# Making a list of all continuous and categorical variables separately for plotting
 
 continuous_vars <- names(summary_df)[sapply(summary_df, is.numeric)]
 
 categorical_vars <- c("orig_language", "MP_parfam", "countryname")
 
-
-p <- ggplot(summary_df, aes(x= total_rows)) +
-  geom_histogram() +
-  theme_minimal()
-
-save_plot(paste0("plots/descriptives/total_rows_histogram.png"), p, base_width = 6, base_height = 4)
-
-# Histograms for the numerical variables
+# Creating a function to create histograms for the continuous variables
 
 create_hist <- function(variable) {
   p <- ggplot(summary_df, aes(x= .data[[variable]])) +
@@ -45,13 +38,13 @@ create_hist <- function(variable) {
 }
 
 
-# looping through the columns to create histograms for each variable
+# looping through the columns; first 3 are date, months and manifesto id:s, which we do not want to plot 
 
 for (var in continuous_vars[3:length(continuous_vars)]) {
   create_hist(var)
 }
 
-# Bar plots for the categorical variables
+# Function to create bar plots for the categorical variables
 
 create_bar <- function(variable) {
   p <- ggplot(summary_df, aes(x= .data[[variable]])) +
@@ -68,8 +61,10 @@ for (var in categorical_vars) {
 }  
 
 
-# Creating a table showing the number of manifesto documents by country by year
+# Summary tables -----
 
+
+# Summarising the number of manifestos per year and country
 
 document_summary <- summary_df |>
   group_by(countryname, year) |>
@@ -83,7 +78,29 @@ document_summary <- summary_df |>
 
 View(document_summary)
 
+# Saving the summary table as a csv file
+
 write_excel_csv(document_summary, "data/manifestos_summary.csv")
+
+# Descriptives table 
+
+summary_table <- summary_df|>
+  select(-c(manifesto_id, party_id, date, partyname, year, month)) |>
+  tbl_summary(
+    statistic = list(all_continuous() ~ "{mean} ({sd})"),
+    missing = "no",
+    sort = list(all_categorical() ~ "frequency")
+  )
+
+
+# Saving the descriptives table as a csv file
+
+summary_table |>
+  as_tibble() |>
+  write_excel_csv("data/descriptives_table.csv")
+
+
+# Summarising plots ----
 
 # Creating a plot that shows the length of the documents and the number of mental health references over time
 
@@ -145,23 +162,6 @@ save_plot("plots/document_summary.png", summary_plot, base_height = 6, base_widt
   scale_color_brewer(palette = "Dark2") +
   theme(legend.position = "bottom")
  
- 
- # Descriptives table -----
- 
- summary_table <- summary_df|>
-   select(-c(manifesto_id, party_id, date, partyname, year, month)) |>
-   tbl_summary(
-     statistic = list(all_continuous() ~ "{mean} ({sd})"),
-     missing = "no",
-     sort = list(all_categorical() ~ "frequency")
-   )
- 
- 
- # Saving the descriptives table as a csv file
- 
- summary_table |>
-   as_tibble() |>
-   write_excel_csv("data/descriptives_table.csv")
 
  
  # Correlation table ----
