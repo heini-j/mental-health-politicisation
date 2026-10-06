@@ -23,7 +23,7 @@ summary_df_clean <- summary_df |>
   mutate(uncoded_rows = ifelse(is.na(uncoded_rows), 0, uncoded_rows),
          total_rows = total_rows - uncoded_rows) |>
   select(-uncoded_rows) |>
-  mutate(ratio = rows_classified_1/total_rows,
+  mutate(ratio = rows_classified_1/total_rows*100,
          lrgen = 10- lrgen,
          lrecon = 10 - lrecon, 
          redistribution = 10- redistribution,
