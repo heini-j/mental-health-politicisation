@@ -194,12 +194,99 @@ save_plot("plots/document_summary.png", summary_plot, base_height = 6, base_widt
                show.sig.stars = TRUE,
                landscape = TRUE)
 
-  
+ 
+ # Group comparisons----
  
  
+ parfam_means <- summary_df |>
+   group_by(MP_parfam) |>
+   summarise(ratio_mean = mean(ratio, na.rm = TRUE),
+             ratio_sd = sd(ratio, na.rm = TRUE),
+             n = n(),
+             .groups = "drop")
+
+                     
+ # making a boxplot to see if there are differences in the ratio variable between the party families
+ 
+ summary_df |> filter(party_id == "13230") |> select("partyname")
+ 
+ summary_df |> filter(between(year, 1999, 2002)) |>
+   ggplot(aes(y=ratio)) +
+   geom_boxplot() +
+   facet_wrap(~MP_parfam) +
+   theme_minimal()
+ 
+ 
+ ?geom_boxplot
+ 
+ 
+ ggplot(summary_df, aes(x = MP_parfam, y = ratio)) +
+   geom_violin() +
+   theme_minimal()
+ 
+ ggplot(summary_df, aes(x = countryname, y = ratio)) +
+   geom_violin() +
+   theme_minimal()
+ 
+ 
+ ggplot(summary_df, aes(x = MP_rightleft, y = ratio)) +
+   geom_point(alpha = 0.5)+
+   theme_minimal()
+ 
+ ggplot(summary_df, aes(x = lrgen, y = ratio)) +
+   geom_point(alpha = 0.5)+
+   theme_minimal()
+ 
+ ggplot(summary_df, aes(x = lrecon, y = ratio)) +
+   geom_point(alpha = 0.5)+
+   theme_minimal()
+ 
+ ggplot(summary_df, aes(x = galtan, y = ratio)) +
+   geom_point(alpha = 0.5)+
+   theme_minimal()
+ 
+ ggplot(summary_df, aes(x = spendvtax, y = ratio)) +
+   geom_point(alpha = 0.5)+
+   theme_minimal()
+ 
+ ggplot(summary_df, aes(x = redistribution, y = ratio)) +
+   geom_point(alpha = 0.5)+
+   theme_minimal()
+ 
+ 
+ ggplot(summary_df, aes(x = MP_human_rights, y = ratio)) +
+   geom_point(alpha = 0.5)+
+   geom_smooth(method = "lm")+
+   theme_minimal()
+ 
+ summary_df |>
+   filter(year>1960) |>
+   ggplot(aes(x = year, y = ratio)) +
+   geom_point(alpha = 0.5)+
+   geom_smooth(method = "loess")+
+   facet_wrap(~countryname, scales = "free")+
+   theme_cowplot()
+ 
+ratio_yearly <- summary_df |>
+  filter(year>= 1960) |>
+  group_by(year) |>
+  summarise(mean_ratio = mean(ratio, na.rm = TRUE),
+            sd_ratio = sd(ratio, na.rm = TRUE))
+ 
+ ggplot(ratio_yearly, (aes(x = year, y = mean_ratio))) +
+          geom_line() +
+          theme_minimal() 
+ 
+ ratio_yearly_country <- summary_df |>
+   filter(year>= 1960) |>
+   group_by(year, countryname, MP_parfam) |>
+   summarise(mean_ratio = mean(ratio, na.rm = TRUE),
+             sd_ratio = sd(ratio, na.rm = TRUE))
 
 
-
-
+ ggplot(ratio_yearly_country, (aes(x = year, y = mean_ratio, color = MP_parfam))) +
+   geom_line() +
+   facet_wrap(~countryname, scales = "free") +
+   theme_minimal() 
 
 

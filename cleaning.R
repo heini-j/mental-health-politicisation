@@ -14,7 +14,7 @@ uncoded_rows <- read_csv("data/uncoded_rows.csv") # file with information on row
 
 # Saving it
 outlier <- summary_df |>
-  filter(ratio >= 0.5) |>
+  filter(ratio >= 50) |>
   select(manifesto_id) # one outlier in the ratio variable
 
 
@@ -29,7 +29,7 @@ summary_df_clean <- summary_df |>
          redistribution = 10- redistribution,
          spendvtax = 10 - spendvtax) |>
           # reversing the right left to match with the CHES variables
-  filter(ratio < 0.5) # removing one outlier in the ratio variable
+  filter(ratio < 50) # removing one outlier in the ratio variable
 
 
 # Adding the party family labels to the data
