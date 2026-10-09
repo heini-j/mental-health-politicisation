@@ -2,101 +2,90 @@ library(readr)
 library(fixest)
 library(broom)
 library(ggfixest)
-install_github("s3alfisc/fwildclusterboot")
+library(plm)
 
 summary_df <- read_csv("data/clean_summary.csv")
 
 model_data <- summary_df |>
-  filter_out(countryname == "Finland" & translated == FALSE)
+  filter_out(country == "Finland" & translated == FALSE) |>
+  group_by(country, party_id) |> # Making a lagged variable of the MP_pervote
+  arrange(year) |>
+  mutate(MP_pervote_lag = lag(MP_pervote, order_by = year)) |>
+  ungroup()
 
 
-summary_df |>
-  filter(MP_parfam == "CHR") |>
-  select(partyname, countryname) |>
-  distinct(partyname, countryname)
+# First models to assess the impact of year only + country fixed + controls
+
+model_1 <- feols(ratio_log ~ year |  country, data = model_data)
+
+model_2 <- feols(ratio_log ~ year + MP_pervote_lag  |  country, data = model_data)
+
+model_3 <- feols(ratio_log ~ year + MP_pervote_lag + GGE_health |  country, data = model_data)
 
 
-model_data2 <- summary_df |>
-  filter(year > 1998)
+m1 <- etable(model_1, model_2, model_3, 
+             digits = "r2")
 
+write_excel_csv(m1, "results/model_year.csv")
 
+plot(model_3)
 
-model_1 <- feols(ratio ~ year |  countryname, data = model_data)
+# Second models on ideology, fixing for year and country effects 
 
+# Party family only
 
-m1 <- etable(model_1)
+model_4 <- feols(ratio_log ~ MP_parfam | country + year, data = model_data)
 
-write_excel_csv(m1, "results/model_1.csv")
+summary(model_4)
 
-plot(model_1)
+# Party family + right left ideology
 
-residuals(model_1) |> hist()
+model_5 <- feols(ratio_log ~ MP_parfam + MP_rightleft | country + year, data = model_data)
 
+summary(model_5)
 
-model_2 <- feols(ratio ~ year + MP_rightleft | countryname, data = model_data, cluster = "countryname")
+# Adding galtan (sample size reduces)
 
-etable(model_1, model_2)
+model_6 <- feols(ratio_log ~ MP_parfam + MP_rightleft + galtan | country + year, data = model_data)
 
+# Adding controls
 
+model_7 <- feols(ratio_log ~ MP_parfam + MP_rightleft + galtan + MP_pervote_lag + GGE_health | country + year, data = model_data)
 
-summary(model_2)
-
-residuals(model_2) |> hist()
-
-stargazer(m1)
-
-# Party family effects
-
-model_3 <- feols(ratio ~  MP_parfam | year + countryname, data = model_data)
-
-summary(model_3)
-
-residuals(model_3) |> hist()
-
-model_4 <- feols(ratio ~  MP_parfam + MP_totseats | year + countryname, data = model_data)
-
-summary(model_4) 
-
-residuals(model_4) |> hist()
-
-model_5 <- feols(ratio ~  MP_parfam + lrecon + MP_totseats | year + countryname, data = model_data)
-
-summary(model_5) 
-
-residuals(model_5) |> hist()
-
-table_test <- etable(model_3, model_4, model_5,
-       digits = 3)
-
-write_excel_csv2(table_test, "results/model_parfam.csv")
-
-
-# Manifesto content variables
-
-model_6 <- feols(ratio ~  MP_welfare_exp + MP_law | year + countryname, data = model_data)
-
-summary(model_6)
-
-residuals(model_6) |> hist()
-
-model_7 <- feols(ratio ~  MP_welfare_exp + MP_human_rights + MP_equality + MP_labourgroups + MP_totseats + MP_pervote | year + countryname, data = model_data)
-
-
-residuals(model_7) |> hist()
 summary(model_7)
 
-table_3 <- etable(model_6, model_7, digits = 3)
+table_2 <- etable(model_4, model_5, model_6, model_7, digits = "r2")
 
-write_excel_csv2(table_3, "results/model_manifesto_content.csv")
+write_excel_csv2(table_2, "results/model_complete.csv")
 
-# Ideology
+# Robustness check; replacing the MP_rightleft variable with CHES equivalents
 
-model_8 <- feols(ratio ~  MP_rightleft  | year + countryname, data = model_data)
+model_7 <- feols(ratio_log ~ MP_parfam + lrgen + galtan + MP_pervote_lag + GGE_health | country + year, data = model_data)
+
+model_8 <- model_7 <- feols(ratio_log ~ MP_parfam + lrecon + galtan + MP_pervote_lag + GGE_health | country + year, data = model_data)
 
 summary(model_8)
+table_3 <- etable(model_7, digits = "r2")
 
-# with CHES instead
+table_4 <- etable(model_8, digits = "r2")
 
-model_7 <- feols(ratio ~  lrgen  + lrecon + redistribution + spendvtax | year + countryname, data = model_data)
 
-summary(model_7)
+write_excel_csv2(table_3, "results/model_robust.csv")
+
+
+# Hausman test ---
+
+# Create a unique identifier for each country-party combination 
+model_data$country_party <- paste(model_data$country, model_data$party_id, sep = "_")
+
+# Defining the formula 
+form <- ratio_log ~ MP_parfam + MP_rightleft + galtan + MP_pervote_lag + GGE_health
+
+# Run the fixed and random effects models
+wi <- plm(form, data = model_data, index = c("country_party", "year"), model = "within")
+re <- plm(form, data = model_data, index = c("country_party", "year"), model = "random")
+
+# The Hausman test
+phtest(wi, re)
+
+
