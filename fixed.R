@@ -1,11 +1,11 @@
 library(readr)
 library(fixest)
-library(broom)
 library(ggfixest)
 library(plm)
 
 summary_df <- read_csv("data/clean_summary.csv")
 
+# Preparing the data for the analysis by removing the inaccurate data and adding lagged MP_pervote
 model_data <- summary_df |>
   filter_out(country == "Finland" & translated == FALSE) |>
   group_by(country, party_id) |> # Making a lagged variable of the MP_pervote
