@@ -40,19 +40,13 @@ manifesto <- read_csv("data/MPDataset_MPDS2026a.csv",
                                        parfam = col_character())) |>
   select("date",
          "manifesto" = "party", 
-         "partyname", 
+         "partyname",
+         "countryname",
          "MP_rightleft" = "rile",
          "MP_parfam" = "parfam", 
-         "countryname",
          "MP_pervote" = "pervote",
-         "MP_totseats" = "totseats",
-         "MP_human_rights" = "per201",
-         "MP_keynesian"= "per409",
          "MP_equality" = "per503",
-         "MP_welfare_exp" = "per504",
-         "MP_welfare_lim" = "per505",
-         "MP_labourgroups" = "per701",
-         "MP_minorities" = "per705") |> # We don't need all the columns
+         "MP_law" = "per605") |> # Selecting only the variables we need
   filter(manifesto %in% parties) |>
   mutate(manifesto = as.character(manifesto),
          )
@@ -84,9 +78,7 @@ ches <- read_csv("data/1999-2024_CHES_dataset_meansV2.csv") |>
                   "ches" = "party_id",
                   "lrgen",
                   "lrecon",
-                  "galtan",
-                  "spendvtax",
-                  "redistribution") |>
+                  "galtan") |>
   mutate(year = replace_when(year, year == 2006 & country == 2 ~ 2007),
          year = replace_when(year, year == 2006 & country == 14 ~ 2007),
          year = replace_when(year, year == 2006 & country == 16 ~ 2006),
@@ -102,16 +94,13 @@ View(ches)
 # Adding Norway data separately from the individual rounds of ches
 # Norwegian elections were 2005, 2009, 2013, 2017 
 
-# commenting out the items that were not asked in the 2019 survey
 
 ches_2024 <- read_csv("data/CHES_2024_final_v2.csv") |>
   filter(country == 16) |>
   select("ches" = "party_id",
          "lrgen",
          "lrecon",
-         "galtan",
-         "spendvtax",
-         "redistribution") |>
+         "galtan") |>
   mutate(year = 2022)
 
 
@@ -123,9 +112,7 @@ ches_2019 <- read_csv("data/CHES2019V3.csv") |>
   "ches" = "party_id",
          "lrgen",
          "lrecon",
-         "galtan",
-         "spendvtax",
-         "redistribution") |>
+         "galtan") |>
   mutate(
     year = case_when(country == 2 ~ 2019,
                      country == 14 ~ 2019,
@@ -143,9 +130,7 @@ ches_2014 <- read_csv("data/2014_CHES_dataset_means.csv") |>
          "country",
          "lrgen",
          "lrecon",
-         "galtan",
-         "spendvtax",
-         "redistribution") |>
+         "galtan") |>
   mutate(
     year = case_when(country  == 2 ~ 2015,
                      country == 14 ~ 2015,
@@ -162,9 +147,7 @@ ches_2010 <- read_csv("data/2010_CHES_dataset_means.csv") |>
          "country",
          "lrgen",
          "lrecon",
-         "galtan",
-         "spendvtax",
-         "redistribution") |>
+         "galtan") |>
   mutate(
     year = case_when(country == 2 ~ 2011,
                      country == 14 ~ 2011,
@@ -181,6 +164,24 @@ ches_complete <- bind_rows(ches, ches_2024, ches_2019, ches_2014, ches_2010) |>
 
 
 View(ches_complete)
+
+# Healthcare spending data from WHO
+
+spending <- readxl::read_excel("data/NHA indicators.xlsx")
+
+spending_long <- spending |>
+  filter_out(row_number() == 1) |>
+  select(-"Indicators", -"...3") |>
+  pivot_longer(
+    cols = `2000`:`2024`,
+    names_to = "year",
+    values_to = "GGE_health"
+  ) |>
+  mutate(year = as.integer(year)) |>
+  rename("countryname" = "Countries")
+
+
+names(spending)
 
 # Preparing datasets for combining ---- 
 
@@ -257,18 +258,23 @@ summary_w_manifesto <- left_join(summary_w_ids, manifesto, by = c("manifesto", "
 complete <- left_join(summary_w_manifesto, ches_complete, by = c("ches", "year"),
                     relationship = "one-to-one")
 
+complete_spending <- left_join(complete, spending_long, by = c("countryname", "year"))
+
+complete
+
 
 View(complete)
 
 # Removing the columns that are not needed for analysis
 
-complete <- complete |>
+complete_final <- complete_spending |>
   select(-c(partyfacts_id, ches)) |>
-  rename("party_id" = "manifesto")
+  rename("party_id" = "manifesto",
+         "country" = "countryname")
 
 # Saving the final dataset for later use -----
 
-write_csv(complete, "data/summary_df.csv")
+write_csv(complete_final, "data/summary_df.csv")
 
 
 
