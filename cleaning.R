@@ -25,9 +25,7 @@ summary_df_clean <- summary_df |>
   select(-uncoded_rows) |>
   mutate(ratio = rows_classified_1/total_rows*100,
          lrgen = 10- lrgen,
-         lrecon = 10 - lrecon, 
-         redistribution = 10- redistribution,
-         spendvtax = 10 - spendvtax) |>
+         lrecon = 10 - lrecon) |>
           # reversing the right left to match with the CHES variables
   filter(ratio < 50) # removing one outlier in the ratio variable
 
@@ -51,7 +49,8 @@ summary_df_clean <- summary_df_clean |>
 # Removing variables that had very low number of observations that were not 0
 
 summary_df_final <- summary_df_clean |>
-  select(-c(MP_keynesian, MP_welfare_lim, MP_minorities))
+  mutate(mh_log = log(rows_classified_1+ 1),
+    ratio_log = log(ratio + 1))
 
 
 
