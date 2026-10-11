@@ -19,13 +19,13 @@ summary_df <- read_csv("data/clean_summary.csv",
 
 # Plotting the variance for visual inspection
 variance <- summary_df |>
-  ggplot(aes(x = year, y = ratio_log)) +
+  ggplot(aes(x = year, y = mh_log)) +
   geom_point(aes(color = translated), alpha=0.6)+
   geom_smooth(method = "loess", span = 0.9, color = "black") +
   facet_wrap(~country, scales = "free")+
   labs(title = NULL,
        x = NULL,
-       y = "Log of ratio") +
+       y = "Log of mental health references") +
   scale_color_paletteer_d("nbapalettes::sixers_retro")+
   theme(legend.position = "bottom",
         axis.text.x = element_text(angle = 45, hjust = 1))+
@@ -40,18 +40,18 @@ save_plot("plots/translation_variance_countries.png", variance, base_width = 6, 
 # Separating the df between translated and original language content
 orig_lang <- summary_df |> 
   filter(translated == FALSE) |>
-  filter(year >= 1975) |>
-  filter(countryname == "Sweden") # Using the same code by changing country name here
+  filter(year >= 1975) #|>
+  filter(country == "Finland") # Using the same code by changing country name here
   
 translation <- summary_df |> 
-  filter(translated == TRUE) |>
-  filter(countryname == "Sweden")
+  filter(translated == TRUE) #|>
+  filter(country == "Finland")
 
 # LOESS fitting separately
-fit_orig_lang <- loess(ratio_log ~ year, data = orig_lang
+fit_orig_lang <- loess(mh_log ~ year, data = orig_lang
                     , span = 0.9
                     )
-fit_translation <- loess(ratio_log ~ year, data = translation
+fit_translation <- loess(mh_log ~ year, data = translation
                       , span = 0.9
                       )
 
