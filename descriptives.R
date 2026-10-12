@@ -288,9 +288,9 @@ save_plot("plots/party_ideology_by_parfam.png", party_ideology_plot, base_height
  # Selecting variables for a correlation table
  
  correlation_vars <- summary_df |>
-   select(c("ratio_log"
-            "mh_log",
+   select(c("mh_log",
             "year", 
+            "MP_parfam",
             "MP_rightleft", 
             "lrgen", 
             "lrecon", 
@@ -308,54 +308,25 @@ apa.cor.table(correlation_vars,
 
 
  
-stargazer(table, type = "html", out = "results/correlation_table.html")
- 
  # Group comparisons----
  
- 
- parfam_means <- summary_df |>
-   group_by(MP_parfam) |>
-   summarise(ratio_mean = mean(ratio, na.rm = TRUE),
-             ratio_sd = sd(ratio, na.rm = TRUE),
-             n = n(),
-             .groups = "drop")
+party_order <- summary_df |>
+  group_by(MP_parfam) |>
+  summarise(mh_log = mean(mh_log, na.rm = TRUE)) |>
+  arrange(desc(mh_log)) |>
+  pull(MP_parfam)
 
+plot_data_03 <- summary_df |>
+  mutate(MP_parfam = factor(MP_parfam, levels = party_order))
+
+## Maybe ridgeline plot?
+ggplot(plot_data_03, aes(x = mh_log, y = MP_parfam)) +
+  geom_point(alpha=0.5) +
+  facet_grid(~country) +
+  labs(title = "Distribution of log of mental health references by party family",
+       x = "Party family",
+       y = "Log of mental health references") +
+  theme_cowplot()
                      
- # making a boxplot to see if there are differences in the ratio variable between the party families
  
- summary_df |> 
-   #filter(between(year, 1999, 2002)) |>
-   ggplot(aes(y=ratio_log)) +
-   geom_boxplot() +
-   facet_wrap(~MP_parfam) +
-   theme_minimal()
- 
- ggplot(summary_df, aes(x = MP_human_rights, y = ratio_log)) +
-   geom_point(alpha = 0.5)+
-   geom_smooth(method = "lm")+
-   theme_minimal()
- 
-
-  ratio_yearly <- summary_df |>
-  filter(year>= 1960) |>
-  group_by(year) |>
-  summarise(mean_ratio = mean(ratio_log, na.rm = TRUE),
-            sd_ratio = sd(ratio_log, na.rm = TRUE))
- 
- ggplot(ratio_yearly, (aes(x = year, y = mean_ratio))) +
-          geom_line() +
-          theme_minimal() 
- 
- ratio_yearly_country <- summary_df |>
-   filter(year>= 1960) |>
-   group_by(year, country, MP_parfam) |>
-   summarise(mean_ratio = mean(ratio_log, na.rm = TRUE),
-             sd_ratio = sd(ratio_log, na.rm = TRUE))
-
-
- ggplot(ratio_yearly_country, (aes(x = year, y = mean_ratio, color = MP_parfam))) +
-   geom_line() +
-   facet_wrap(~country, scales = "free") +
-   theme_minimal() 
-
 
