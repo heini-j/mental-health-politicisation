@@ -3,9 +3,12 @@ library(tidyr)
 library(dplyr)
 library(ggplot2)
 library(paletteer)
-library(car)
+library(apaTables)
 library(cowplot)
+library(psych)
 library(gtsummary)
+library(patchwork)
+library(forcats)
 
 #' This code generates descriptive statistics and plots of all the variables. 
 
@@ -18,14 +21,14 @@ summary_df <- read_csv("data/clean_summary.csv",
 
 View(summary_df)
 
-
 # Plotting all variables ----
 
 # Making a list of all continuous and categorical variables separately for plotting
 
 continuous_vars <- names(summary_df)[sapply(summary_df, is.numeric)]
 
-categorical_vars <- c("orig_language", "MP_parfam", "countryname")
+categorical_vars <- c("orig_language", "MP_parfam", "country")
+
 
 # Creating a function to create histograms for the continuous variables
 
@@ -67,11 +70,11 @@ for (var in categorical_vars) {
 # Summarising the number of manifestos per year and country
 
 document_summary <- summary_df |>
-  group_by(countryname, year) |>
+  group_by(country, year) |>
   summarise(n = n(), .groups = "drop") |>
   arrange(year) |>
   pivot_wider(
-    names_from = countryname,
+    names_from = year,
     values_from = n,
     values_fill = 0
   ) 
@@ -82,22 +85,58 @@ View(document_summary)
 
 write_excel_csv(document_summary, "data/manifestos_summary.csv")
 
-# Descriptives table 
 
-summary_table <- summary_df|>
-  select(-c(manifesto_id, party_id, date, partyname, year, month)) |>
+summary_df |>
+  filter(country == "Finland" & MP_parfam == "ETH") |>
+  select(partyname)
+
+#  Descriptive statistics table ----
+
+# For all variables and by country
+
+summary_combined <- summary_df |>
+  select(country,
+         orig_language, 
+         translated,
+         MP_parfam,
+         total_rows,
+         mh_log,
+         ratio,
+         MP_rightleft,
+         lrgen,
+         lrecon,
+         galtan,
+         GGE_health,
+         MP_pervote
+  ) |>
   tbl_summary(
-    statistic = list(all_continuous() ~ "{mean} ({sd})"),
+    by = country,
+    statistic = list(
+      all_continuous() ~ "{mean} ({sd}) [{min}, {max}]",
+      all_categorical() ~ "{n} ({p}%)"
+    ),
     missing = "no",
     sort = list(all_categorical() ~ "frequency")
-  )
+  ) |>
+  add_overall()
 
+parties_by_country <- summary_df |>
+  group_by(country) |>
+  summarise(
+    n_parties = n_distinct(party_id, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  pivot_wider(
+    names_from = country,
+    values_from = n_parties
+  )
 
 # Saving the descriptives table as a csv file
 
-summary_table |>
+summary_combined |>
   as_tibble() |>
-  write_excel_csv("data/descriptives_table.csv")
+  bind_rows(parties_by_country) |>
+  write_excel_csv("results/descriptives_table.csv")
 
 
 # Summarising plots ----
@@ -105,7 +144,7 @@ summary_table |>
 # Creating a plot that shows the length of the documents and the number of mental health references over time
 
 rows_summary <- summary_df |>
-  group_by(countryname, year) |>
+  group_by(country, year) |>
   summarise(n_rows = mean(total_rows),
             n_mh = mean(rows_classified_1),
             n_documents = n(),
@@ -116,16 +155,8 @@ View(rows_summary)
 summary_plot <- rows_summary |>
   ggplot(aes(x = year)) +
   geom_line(aes(y = n_rows, color = "Total n of quasi-sentences")) +
-  geom_point(aes(y = n_rows, color = "Total n of quasi-sentences")) +
-  geom_text(
-    aes(y = n_rows, label = n_documents),
-    nudge_y = 40,
-    nudge_x = -0.5,
-    size = 4
-  )+
   geom_line(aes(y = n_mh*10, color = "Mental health references")) +
-  scale_color_paletteer_d("futurevisions::jupiter") +
-  facet_wrap(~countryname, scales = "free") +
+  facet_wrap(~country, scales = "free") +
   labs(title = NULL,
        x = NULL,
        y = "Number of quasi-sentences") +
@@ -137,31 +168,119 @@ summary_plot <- rows_summary |>
     sec.axis = sec_axis(
       ~ . / 10,
       name = "References to mental health")) +
-  theme_minimal() +
-  theme(legend.position = "bottom",
-        legend.title = element_blank(),
-        axis.text.x = element_text(angle = 45, hjust = 1))
+  scale_color_manual(
+    values = c(
+      "Total n of quasi-sentences" = "#3B528B",
+      "Mental health references" = "#E07A5F"
+    )
+  ) +
+  theme_cowplot() +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    
+    # Left axis: total quasi-sentences
+    axis.title.y.left = element_text(color = "#3B528B"),
+    axis.text.y.left = element_text(color = "#3B528B"),
+    axis.ticks.y.left = element_line(color = "#3B528B"),
+    axis.line.y.left = element_line(color = "#3B528B"),
+    
+    # Right axis: mental health references
+    axis.title.y.right = element_text(color = "#E07A5F"),
+    axis.text.y.right = element_text(color = "#E07A5F"),
+    axis.ticks.y.right = element_line(color = "#E07A5F"),
+    axis.line.y.right = element_line(color = "#E07A5F")
+  )
 
 
 save_plot("plots/document_summary.png", summary_plot, base_height = 6, base_width = 10)
 
 
-# Same for ratio variable
 
- summary_df |> 
-  #filter(translated == F) |>
-  #filter(year > 1998) |>
-  ggplot(aes(x = year, y = ratio)) +
-  geom_point() +
-  facet_wrap(~countryname) + 
-  geom_smooth(method = "lm") +
-  labs(title = "x",
-       x = "Date",
-       y = "Ratio of Classified Rows") +
+# Plotting difference for parfams
+
+summary_parties <- summary_df |>
+  group_by(MP_parfam, year, country) |>
+  summarise(mean_ratio = mean(mh_log, na.rm = TRUE),
+            .groups = "drop")
+
+
+# Line plot, party families in different colors, faceted by country
+ggplot(summary_parties, aes(x = year, y = mean_ratio, color = MP_parfam)) +
+  geom_line() +
+  facet_wrap(~country, scales = "free") +
   theme_minimal() +
-  scale_color_brewer(palette = "Dark2") +
-  theme(legend.position = "bottom")
- 
+  labs(title = "Mean log of mental health references by party family and country",
+       x = "Year",
+       y = "Mean log of mental health references") +
+  theme_cowplot()
+
+# Boxplots of ideology variables by party family ----
+
+# Party family x manifesto left-right ideology
+
+# Creating a party order to arrange the boxplots by ideology, from left to right
+party_order <- summary_df |>
+  group_by(MP_parfam) |>
+  summarise(MP_rightleft = mean(MP_rightleft, na.rm = TRUE)) |>
+  arrange(desc(MP_rightleft)) |>
+  pull(MP_parfam)
+
+# Creating a new dataset with the factors
+plot_data_01 <- summary_df |>
+  mutate(MP_parfam = factor(MP_parfam, levels = party_order))
+
+# Plotting it
+manifestorl <- ggplot(plot_data_01, aes(x = MP_rightleft, y = MP_parfam)) +
+  geom_boxplot(outlier.shape = NA) +
+  labs(title = NULL,
+       x = "Manifesto right-left ideology",
+       y = "Party family") +
+  theme_cowplot()
+
+save_plot("plots/MP_rightleft_by_parfam.png", manifestorl, base_height = 6, base_width = 10)
+
+# Party family x general left-right ideology
+
+# Ordering by the first variable, lrgen for reference for the other groups
+party_order <- summary_df |>
+  group_by(MP_parfam) |>
+  summarise(lrgen = mean(lrgen, na.rm = TRUE)) |>
+  arrange(desc(lrgen)) |>
+  pull(MP_parfam)
+
+plot_data_02 <- summary_df |>
+  mutate(MP_parfam = factor(MP_parfam, levels = party_order))
+
+plot_lrgen <- ggplot(plot_data_02, aes(x = lrgen, y = MP_parfam)) +
+  geom_boxplot() +
+  labs(title = NULL,
+       x = "Party general left-right ideology",
+       y = "Party family") +
+  theme_cowplot()
+
+plot_lrecon <- ggplot(plot_data_02, aes(x = lrecon, y = MP_parfam)) +
+  geom_boxplot() +
+  labs(title = NULL,
+       x = "Party economic left-right ideology",
+       y = "Party family") +
+  theme_cowplot()
+
+plot_galtan <- ggplot(plot_data_02, aes(x = galtan, y = MP_parfam)) +
+  geom_boxplot() +
+  labs(title = NULL,
+       x = "Party GAL-TAN ideology",
+       y = "Party family") +
+  theme_cowplot()
+
+# Combining to a single plot
+party_ideology_plot <- wrap_plots(list(plot_lrgen, plot_lrecon, plot_galtan), 
+                                  axes = "collect",
+                                  axis_titles = "collect_y")
+
+save_plot("plots/party_ideology_by_parfam.png", party_ideology_plot, base_height = 6, base_width = 10)
+
 
  
  # Correlation table ----
@@ -169,31 +288,27 @@ save_plot("plots/document_summary.png", summary_plot, base_height = 6, base_widt
  # Selecting variables for a correlation table
  
  correlation_vars <- summary_df |>
-   select(c("ratio",
+   select(c("ratio_log"
+            "mh_log",
             "year", 
             "MP_rightleft", 
             "lrgen", 
             "lrecon", 
-            "galtan", 
-            "redistribution", 
-            "spendvtax",
-            "MP_human_rights", 
-            "MP_equality", 
-            "MP_welfare_exp", 
-            "MP_labourgroups", 
-            "MP_pervote",
-            "MP_totseats",
-            "total_rows"))
+            "galtan",
+            "GGE_health",
+            "MP_pervote"))
  
  
-   
  
  # Creating the table, saving as a doc file
- apa.cor.table(correlation_vars,
-               filename = "data/correlation_table.doc",
-               show.sig.stars = TRUE,
-               landscape = TRUE)
+apa.cor.table(correlation_vars,
+              filename = "results/correlation_table.doc",
+              show.sig.stars = TRUE,
+              landscape = TRUE) 
 
+
+ 
+stargazer(table, type = "html", out = "results/correlation_table.html")
  
  # Group comparisons----
  
@@ -208,70 +323,24 @@ save_plot("plots/document_summary.png", summary_plot, base_height = 6, base_widt
                      
  # making a boxplot to see if there are differences in the ratio variable between the party families
  
- summary_df |> filter(party_id == "13230") |> select("partyname")
- 
- summary_df |> filter(between(year, 1999, 2002)) |>
-   ggplot(aes(y=ratio)) +
+ summary_df |> 
+   #filter(between(year, 1999, 2002)) |>
+   ggplot(aes(y=ratio_log)) +
    geom_boxplot() +
    facet_wrap(~MP_parfam) +
    theme_minimal()
  
- 
- ?geom_boxplot
- 
- 
- ggplot(summary_df, aes(x = MP_parfam, y = ratio)) +
-   geom_violin() +
-   theme_minimal()
- 
- ggplot(summary_df, aes(x = countryname, y = ratio)) +
-   geom_violin() +
-   theme_minimal()
- 
- 
- ggplot(summary_df, aes(x = MP_rightleft, y = ratio)) +
-   geom_point(alpha = 0.5)+
-   theme_minimal()
- 
- ggplot(summary_df, aes(x = lrgen, y = ratio)) +
-   geom_point(alpha = 0.5)+
-   theme_minimal()
- 
- ggplot(summary_df, aes(x = lrecon, y = ratio)) +
-   geom_point(alpha = 0.5)+
-   theme_minimal()
- 
- ggplot(summary_df, aes(x = galtan, y = ratio)) +
-   geom_point(alpha = 0.5)+
-   theme_minimal()
- 
- ggplot(summary_df, aes(x = spendvtax, y = ratio)) +
-   geom_point(alpha = 0.5)+
-   theme_minimal()
- 
- ggplot(summary_df, aes(x = redistribution, y = ratio)) +
-   geom_point(alpha = 0.5)+
-   theme_minimal()
- 
- 
- ggplot(summary_df, aes(x = MP_human_rights, y = ratio)) +
+ ggplot(summary_df, aes(x = MP_human_rights, y = ratio_log)) +
    geom_point(alpha = 0.5)+
    geom_smooth(method = "lm")+
    theme_minimal()
  
- summary_df |>
-   filter(year>1960) |>
-   ggplot(aes(x = year, y = ratio)) +
-   geom_point(alpha = 0.5)+
-   geom_smooth(method = "loess")+
-   facet_wrap(~countryname, scales = "free")+
-   theme_cowplot()
- 
-ratio_yearly <- summary_df |>
+
+  ratio_yearly <- summary_df |>
   filter(year>= 1960) |>
   group_by(year) |>
-  summarise(mean_ratio = mean(ratio, na.rm = TRUE),
-            sd_ratio = sd(ratio, na.rm = TRUE))
+  summarise(mean_ratio = mean(ratio_log, na.rm = TRUE),
+            sd_ratio = sd(ratio_log, na.rm = TRUE))
  
  ggplot(ratio_yearly, (aes(x = year, y = mean_ratio))) +
           geom_line() +
@@ -279,14 +348,14 @@ ratio_yearly <- summary_df |>
  
  ratio_yearly_country <- summary_df |>
    filter(year>= 1960) |>
-   group_by(year, countryname, MP_parfam) |>
-   summarise(mean_ratio = mean(ratio, na.rm = TRUE),
-             sd_ratio = sd(ratio, na.rm = TRUE))
+   group_by(year, country, MP_parfam) |>
+   summarise(mean_ratio = mean(ratio_log, na.rm = TRUE),
+             sd_ratio = sd(ratio_log, na.rm = TRUE))
 
 
  ggplot(ratio_yearly_country, (aes(x = year, y = mean_ratio, color = MP_parfam))) +
    geom_line() +
-   facet_wrap(~countryname, scales = "free") +
+   facet_wrap(~country, scales = "free") +
    theme_minimal() 
 
 
