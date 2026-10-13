@@ -4,60 +4,39 @@ library(ggfixest)
 library(plm)
 library(modelsummary)
 library(gtsummary)
+library(car)
+library(rstatix)
 
 
 model_data <- read_csv("data/clean_summary.csv")
 
+# Negative binomial regression ---
 
 
-# Hausman test ---
+# Impact of year on references 
 
 
-# first models 
+model0 <- MASS::glm.nb(rows_classified_1 ~ year, data = model_data)
 
-# Create a unique identifier for each country-party combination 
-model_data$country_party <- paste(model_data$country, model_data$party_id, sep = "_")
+summary(model0)
 
-# Defining the formula 
-form <- mh_log ~ MP_rightleft + MP_pervote_lag 
+# Exponentiated coefficients (IRR)
+exp(coef(model0))
 
-# Run the fixed and random effects models
-wi <- plm(form, data = model_data, index = c("country_party", "year"), model = "within")
-re <- plm(form, data = model_data, index = c("country_party", "year"), model = "random")
+exp(confint(model0))
 
-# The Hausman test
-phtest(wi, re)
+# with control variable
 
+model_w_control <- MASS::glm.nb(rows_classified_1  ~ year +  MP_pervote_lag, data = model_data)
 
-# Newer data with more parties and more variables
-model_data_2 <- model_data |>
-  filter(year >= 1999)
+summary(model_w_control)
 
+exp(coef(model_w_control))
+exp(confint(model_w_control))
 
-# Create a unique identifier for each country-party combination 
-model_data_2$country_party <- paste(model_data_2$country, model_data_2$party_id, sep = "_")
+# Saving the regression table for later
 
-# Defining the formula 
-form <- mh_log ~ MP_rightleft + galtan + MP_pervote_lag + GGE_health
-
-# Run the fixed and random effects models
-wi <- plm(form, data = model_data_2, index = c("country_party", "year"), model = "within")
-re <- plm(form, data = model_data_2, index = c("country_party", "year"), model = "random")
-
-# The Hausman test
-phtest(wi, re)
-
-# OLS ---
-
-
-# First OLS models to assess the impact of year only + country fixed + controls
-
-
-model_year <- lm(mh_log ~ year, data = model_data)
-
-model_w_control <- lm(mh_log ~ year +  MP_pervote_lag, data = model_data)
-
-modelsummary(list("1" = model_year, "2" = model_w_control), 
+modelsummary(list("1" = model0, "2" = model_w_control), 
              output = "results/regression_table.docx",
              fmt = fmt_decimal(digits = 2, pdigits = 3),
              statistic = "p.value",
@@ -65,57 +44,13 @@ modelsummary(list("1" = model_year, "2" = model_w_control),
 
 
 
-summary(model_year)
 
-# Fixed effects
+# Robustness: does fixed country effects change the result
 
-# Second models on ideology, fixing for year and country effects 
+fe_nb_model <- fenegbin(rows_classified_1  ~ year +  MP_pervote_lag | country, 
+                       data = model_data)
 
-# Party family only
-
-model_4 <- feols(mh_log ~ MP_rightleft | year, data = model_data)
-
-summary(model_4)
-
-# Adding control
-
-model_5 <- feols(mh_log ~ MP_rightleft + MP_pervote_lag | year, data = model_data)
-
-summary(model_5)
-
-plot(model_5, type = "coef")
-
-table_2 <- etable(model_4, model_5, digits = "r2")
-
-write_excel_csv2(table_2, "results/model_complete.csv")
-
-# With newer data and more parties
-
-# Repreating the same model with newer data
-model_7 <- feols(mh_log ~ MP_rightleft + MP_pervote_lag | country + year, data = model_data_2)
-
-summary(model_7)
-
-
-model_8 <- feols(mh_log ~ MP_rightleft + galtan + MP_pervote_lag | country + year, data = model_data_2)
-
-summary(model_8)
-
-
-
-model_9 <- feols(mh_log ~ MP_rightleft + galtan + MP_pervote_lag + GGE_health | country + year, data = model_data_2)
-
-summary(model_9)
-
-
-model_10 <- feols(mh_log ~ lrecon + galtan + MP_pervote_lag + GGE_health | country + year, data = model_data_2)
-
-summary(model_10)
-
-
-table_3 <- etable(model_7, model_8, model_9, digits = "r2")
-
-write_excel_csv2(table_3, "results/model_complete2.csv")
+summary(fe_nb_model)
 
 
 
