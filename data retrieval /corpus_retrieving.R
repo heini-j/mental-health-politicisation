@@ -42,7 +42,7 @@ texts_for_sampling <- data.frame(text=character())
 for (i in 1:nrow(manifesto_ids)) {
   message("Retrieving row ", i)
   tryCatch(expr = {res <- retrieve_manifesto(manifesto_ids[i, 1:2])
-  #write_csv(res, paste0("data/", manifesto_ids$party[i], "_", manifesto_ids$date[i], ".csv"))
+  write_csv(res, paste0("data/", manifesto_ids$party[i], "_", manifesto_ids$date[i], ".csv")) # saving the manifesto document with the manifesto_id
   new_rows <- data.frame(text = res$text)
   texts_for_sampling <- bind_rows(texts_for_sampling, new_rows)
   message ("Successfully retrieved row ", i)

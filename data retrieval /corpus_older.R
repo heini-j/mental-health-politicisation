@@ -1,6 +1,5 @@
 library(manifestoR)
 library(dplyr)
-library(stringr)
 library(readr)
 library(tidyr)
 library(stringr)
@@ -48,7 +47,6 @@ summarise(manifesto_ids,
           norway = sum(countryname == "Norway"),
           sweden = sum(countryname == "Sweden"))
 
-# denmark 67, fin 45, nor 42, swe 54
 
 # 208 potential manifesto documents to retrieve from the four countries
 
@@ -56,6 +54,7 @@ summarise(manifesto_ids,
 
 # test with one manifesto document
 
+manifesto_ids <- read_csv("data/missing_manifestos.csv")
 request <- manifesto_ids[30, ]
 
 request$date
@@ -65,6 +64,8 @@ names(request)
 
 # retriecing the document 
 test <- mp_corpus_df(request)
+
+View(test)
 
 # splitting the text into multiple lines
 test_split <- test |>
@@ -86,12 +87,22 @@ mp_setapikey("manifesto_apikey.txt")
 
 retrieve_manifesto <- function(manifesto_id) {
   test <- mp_corpus_df(manifesto_id)
-  test_split <- test |>
+  if (nrow(test) == 1) {
+    test_split <- test |>
     separate_longer_delim(text, delim = ".") |>
     mutate(text = str_trim(text))
-  write_csv(test_split, paste0("~/Google Drive/My Drive/Colab Notebooks/Thesis/new_files/", manifesto_id$party, "_", manifesto_id$date, ".csv"))
-  return(test_split)
+    
+    write_csv(test_split, paste0("~/Google Drive/My Drive/Colab Notebooks/Thesis/new_files/", manifesto_id$party, "_", manifesto_id$date, ".csv"))
+    
+    return (test_split)
+  } else {
+    write_csv(test, paste0("~/Google Drive/My Drive/Colab Notebooks/Thesis/new_files/", manifesto_id$party, "_", manifesto_id$date, ".csv"))
+    return(test) 
+  }
 }
+
+
+retrieve_manifesto(request)
 
 # a function to check if the corpus has digitised version of the manifesto
 
@@ -101,44 +112,49 @@ is_valid <- function(res) {
 
 # a dataframe that will log the availability information for each document
 log_df <- data.frame(
-  row = 1:208,
+  row = 1:37,
   status = NA,
   manifesto_id = NA,
+  countryname = NA,
   stringsAsFactors = FALSE
 )
+
+manifesto_ids <- read_csv("data/missing_manifestos.csv")
 
 # Looping through all the manifestos ----
 
 for (i in 1:nrow(manifesto_ids)) {
   message("Retrieving row ", i, " of ", nrow(manifesto_ids))
-  res <- tryCatch(retrieve_manifesto(manifesto_ids[i, 1:2]),
+  res <- tryCatch(retrieve_manifesto(manifesto_ids[i, 2:3]),
                       error = function(e) {
                         message(paste("Error retrieving row ", i, ": ", e$message))
                         return(NULL)
                       })
   
   if (!is_valid(res)) {
-    log_df$status[i] <- "no_data"
+    log_df$status[i] <- 0
     log_df$manifesto_id[i] <- paste0(manifesto_ids$party[i], "_", manifesto_ids$date[i])
+    log_df$countryname[i] <- manifesto_ids$countryname[i]
     message("  -> No data available")
   } else {
-    log_df$status[i] <- "success"
+    log_df$status[i] <- 1
     log_df$manifesto_id[i] <- paste0(manifesto_ids$party[i], "_", manifesto_ids$date[i])
+    log_df$countryname[i] <- manifesto_ids$countryname[i]
   }
 }
+
+
 
 # Checking the logs -----
 
 View(log_df)
 
-log_df <- left_join(manifesto_ids, log_df, by = c("row" = "row"))
-
 log_df |>
   group_by(countryname) |>
   summarise(
     total = n(),
-    success = sum(status == "success"),
-    no_data = sum(status == "no_data")
+    success = sum(status == 1),
+    no_data = sum(status == 0)
   )
 
 
@@ -146,9 +162,9 @@ log_df |>
 
 # limiting the list of ids to those that had a document
 
-success_ids <- manifesto_ids[log_df$status == "success", ]
+success_ids <- manifesto_ids[log_df$status == 1, ]
 
-write_csv(success_ids, "~/Google Drive/My Drive/Colab Notebooks/Thesis/additional_ids.csv")
+write_csv(success_ids, "~/Google Drive/My Drive/Colab Notebooks/Thesis/orig_lang_ids.csv")
 
 # examining the available documents in relation to the not available ones
 
