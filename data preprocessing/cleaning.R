@@ -1,5 +1,6 @@
 library(readr)
 library(tidyr)
+library(dplyr)
 
 summary_df <- read_csv("data/summary_df.csv",
                        col_types = cols(party_id = col_character(), 
@@ -17,16 +18,12 @@ outlier <- summary_df |>
   filter(ratio >= 50) |>
   select(manifesto_id) # one outlier in the ratio variable
 
-
 summary_df_clean <- summary_df |>
   left_join(uncoded_rows, by = "manifesto_id") |>
   mutate(uncoded_rows = ifelse(is.na(uncoded_rows), 0, uncoded_rows),
          total_rows = total_rows - uncoded_rows) |>
   select(-uncoded_rows) |>
-  mutate(ratio = rows_classified_1/total_rows*100,
-         lrgen = 10- lrgen,
-         lrecon = 10 - lrecon) |>
-          # reversing the right left to match with the CHES variables
+  mutate(ratio = rows_classified_1/total_rows*100) |>
   filter(ratio < 50) # removing one outlier in the ratio variable
 
 
@@ -46,11 +43,15 @@ summary_df_clean <- summary_df_clean |>
   ))
 
 
-# Removing variables that had very low number of observations that were not 0
+# Adding the log transformations of the mh content and ratio variables to the data + lagged version of vote share
 
 summary_df_final <- summary_df_clean |>
   mutate(mh_log = log(rows_classified_1+ 1),
-    ratio_log = log(ratio + 1))
+    ratio_log = log(ratio + 1)) |>
+  group_by(country, party_id) |> 
+  arrange(year) |>
+  mutate(MP_pervote_lag = lag(MP_pervote, order_by = year)) |>
+  ungroup()
 
 
 
