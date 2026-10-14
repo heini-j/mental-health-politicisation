@@ -74,22 +74,15 @@ document_summary <- summary_df |>
   group_by(country, year) |>
   summarise(n = n(), .groups = "drop") |>
   arrange(year) |>
-  pivot_wider(
-    names_from = year,
-    values_from = n,
-    values_fill = 0
-  ) 
+  pivot_wider(names_from = country, values_from = n) |>
+  mutate(across(everything(), ~ ifelse(is.na(.), "-", .)))
 
 View(document_summary)
 
 # Saving the summary table as a csv file
 
-write_excel_csv(document_summary, "data/manifestos_summary.csv")
+write_excel_csv2(document_summary, "data/manifestos_summary.csv")
 
-
-summary_df |>
-  filter(country == "Finland" & MP_parfam == "ETH") |>
-  select(partyname)
 
 #  Descriptive statistics table ----
 
