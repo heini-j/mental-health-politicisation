@@ -9,6 +9,7 @@ library(psych)
 library(gtsummary)
 library(patchwork)
 library(forcats)
+library(GGally)
 
 #' This code generates descriptive statistics and plots of all the variables. 
 
@@ -287,19 +288,34 @@ save_plot("plots/party_ideology_by_parfam.png", party_ideology_plot, base_height
  
  # Selecting variables for a correlation table
  
- correlation_vars <- summary_df |>
-   select(c("mh_log",
-            "year", 
-            "MP_parfam",
-            "MP_rightleft", 
-            "lrgen", 
-            "lrecon", 
-            "galtan",
-            "GGE_health",
-            "MP_pervote"))
+correlation_vars <- summary_df |>
+  select(rows_classified_1, ratio_log, year,
+         MP_rightleft, lrgen, lrecon, galtan,
+         GGE_health, MP_pervote
+  ) |>
+  rename(
+    "MH_references" = rows_classified_1,
+    "Manifesto_LR" = MP_rightleft,
+    "LR_general" = lrgen,
+    "LR_economic" = lrecon,
+    "Gal_tan" = galtan,
+    "Health_expenses" = GGE_health,
+    "Percentage_votes" = MP_pervote
+  )
+
  
- 
- 
+cor_matrix <- ggcorr(correlation_vars,
+       method = c("pairwise", "pearson"),
+       low = "#04225CFF",
+       mid = "white",
+       high = "#DC3B34FF",
+       label = TRUE,
+       hjust = 1,
+       size = 3,
+       layout.exp = 2) 
+
+save_plot("plots/correlation_matrix.png", cor_matrix, base_height = 6, base_width = 7)
+  
  # Creating the table, saving as a doc file
 apa.cor.table(correlation_vars,
               filename = "results/correlation_table.doc",
