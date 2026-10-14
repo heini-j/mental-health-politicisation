@@ -5,7 +5,6 @@ library(ggplot2)
 library(paletteer)
 library(apaTables)
 library(cowplot)
-library(psych)
 library(gtsummary)
 library(patchwork)
 library(forcats)
@@ -65,7 +64,7 @@ for (var in categorical_vars) {
 }  
 
 
-# Summary tables -----
+# Manifesto documents summary table -----
 
 
 # Summarising the number of manifestos per year and country
@@ -133,7 +132,7 @@ summary_combined |>
   write_excel_csv("results/descriptives_table.csv")
 
 
-# Summarising plots ----
+# Line plot: length x n of references ----
 
 # Creating a plot that shows the length of the documents and the number of mental health references over time
 
@@ -191,25 +190,6 @@ summary_plot <- rows_summary |>
 save_plot("plots/document_summary.png", summary_plot, base_height = 6, base_width = 10)
 
 
-
-# Plotting difference for parfams
-
-summary_parties <- summary_df |>
-  group_by(MP_parfam, year, country) |>
-  summarise(mean_ratio = mean(mh_log, na.rm = TRUE),
-            .groups = "drop")
-
-
-# Line plot, party families in different colors, faceted by country
-ggplot(summary_parties, aes(x = year, y = mean_ratio, color = MP_parfam)) +
-  geom_line() +
-  facet_wrap(~country, scales = "free") +
-  theme_minimal() +
-  labs(title = "Mean log of mental health references by party family and country",
-       x = "Year",
-       y = "Mean log of mental health references") +
-  theme_cowplot()
-
 # Boxplots of ideology variables by party family ----
 
 # Party family x manifesto left-right ideology
@@ -235,7 +215,7 @@ manifestorl <- ggplot(plot_data_01, aes(x = MP_rightleft, y = MP_parfam)) +
 
 save_plot("plots/MP_rightleft_by_parfam.png", manifestorl, base_height = 6, base_width = 10)
 
-# Party family x general left-right ideology
+# Party family x ideology box plots -----
 
 # Ordering by the first variable, lrgen for reference for the other groups
 party_order <- summary_df |>
@@ -277,7 +257,7 @@ save_plot("plots/party_ideology_by_parfam.png", party_ideology_plot, base_height
 
 
  
- # Correlation table ----
+ # Correlation matrix ----
  
  # Selecting variables for a correlation table
  
@@ -309,7 +289,8 @@ cor_matrix <- ggcorr(correlation_vars,
 
 save_plot("plots/correlation_matrix.png", cor_matrix, base_height = 6, base_width = 7)
   
- # Creating the table, saving as a doc file
+ # Correlation table -----
+
 apa.cor.table(correlation_vars,
               filename = "results/correlation_table.doc",
               show.sig.stars = TRUE,
@@ -319,16 +300,8 @@ apa.cor.table(correlation_vars,
  
  # Group comparisons----
  
-party_order <- summary_df |>
-  group_by(MP_parfam) |>
-  summarise(mh_log = mean(mh_log, na.rm = TRUE)) |>
-  arrange(desc(mh_log)) |>
-  pull(MP_parfam)
 
-plot_data_03 <- summary_df |>
-  mutate(MP_parfam = factor(MP_parfam, levels = party_order))
-
-## Maybe ridgeline plot?
+# Boxplot of party group x mental health ratio 
 summary_df |>
   filter(year >= 1999) |>
   filter(MP_parfam %in% c("SOSDEM", "CON", "NAT", "LEFT", "CHR")) |>  
