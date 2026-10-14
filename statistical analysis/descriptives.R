@@ -329,13 +329,16 @@ plot_data_03 <- summary_df |>
   mutate(MP_parfam = factor(MP_parfam, levels = party_order))
 
 ## Maybe ridgeline plot?
-ggplot(plot_data_03, aes(x = mh_log, y = MP_parfam)) +
-  geom_point(alpha=0.5) +
-  facet_grid(~country) +
-  labs(title = "Distribution of log of mental health references by party family",
-       x = "Party family",
-       y = "Log of mental health references") +
+summary_df |>
+  filter(year >= 1999) |>
+  filter(MP_parfam %in% c("SOSDEM", "CON", "NAT", "LEFT", "CHR")) |>  
+  ggplot(aes(x = ratio_log, y = MP_parfam)) +
+  geom_boxplot(outliers = FALSE) +
+  facet_wrap(~country) +
   theme_cowplot()
+
+
+
                      
  
 

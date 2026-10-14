@@ -77,16 +77,21 @@ exp(coef(model_9))
 exp(confint(model_9))
 
 # Checking results with CHES left-right variable 
+
 model_10 <- fenegbin(rows_classified_1 ~ lrgen + galtan + MP_pervote_lag + GGE_health | country + year, data = model_data_2)
 
 summary(model_10)
 
+exp(coef(model_10))
+
+exp(confint(model_10))
 
 # Combining the tables and saving them as a csv file
 table_3 <- etable(model_8, model_9, model_10, digits = "r2")
 
+write_excel_csv2(table_3, "results/model_complete2.csv")
+
 table_4 <- etable(model_10, digits = "r2")
 
-write_excel_csv2(table_3, "results/model_complete2.csv")
 
 write_excel_csv2(table_4, "results/model_lrecon.csv")
