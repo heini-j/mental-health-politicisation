@@ -50,8 +50,10 @@ modelsummary(list("1" = model0, "2" = model_w_control),
 fe_nb_model <- fenegbin(rows_classified_1  ~ year +  MP_pervote_lag | country, 
                        data = model_data)
 
-summary(fe_nb_model)
+results <- etable(fe_nb_model)
 
+write_excel_csv2(results, "results/robustness_model.csv")
 
+exp(coef(fe_nb_model))
 
 
