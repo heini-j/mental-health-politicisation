@@ -154,7 +154,7 @@ View(rows_summary)
 
 summary_plot <- rows_summary |>
   ggplot(aes(x = year)) +
-  geom_line(aes(y = n_rows, color = "Total n of quasi-sentences")) +
+  geom_line(aes(y = n_rows, color = "Length of documents")) +
   geom_line(aes(y = n_mh*10, color = "Mental health references")) +
   facet_wrap(~country, scales = "free") +
   labs(title = NULL,
@@ -170,8 +170,8 @@ summary_plot <- rows_summary |>
       name = "References to mental health")) +
   scale_color_manual(
     values = c(
-      "Total n of quasi-sentences" = "#3B528B",
-      "Mental health references" = "#E07A5F"
+      "Length of documents" = "#DC3B34FF",
+      "Mental health references" = "#04225CFF"
     )
   ) +
   theme_cowplot() +
@@ -181,16 +181,16 @@ summary_plot <- rows_summary |>
     axis.text.x = element_text(angle = 45, hjust = 1),
     
     # Left axis: total quasi-sentences
-    axis.title.y.left = element_text(color = "#3B528B"),
-    axis.text.y.left = element_text(color = "#3B528B"),
-    axis.ticks.y.left = element_line(color = "#3B528B"),
-    axis.line.y.left = element_line(color = "#3B528B"),
+    axis.title.y.left = element_text(color = "#DC3B34FF"),
+    axis.text.y.left = element_text(color = "#DC3B34FF"),
+    axis.ticks.y.left = element_line(color = "#DC3B34FF"),
+    axis.line.y.left = element_line(color = "#DC3B34FF"),
     
     # Right axis: mental health references
-    axis.title.y.right = element_text(color = "#E07A5F"),
-    axis.text.y.right = element_text(color = "#E07A5F"),
-    axis.ticks.y.right = element_line(color = "#E07A5F"),
-    axis.line.y.right = element_line(color = "#E07A5F")
+    axis.title.y.right = element_text(color = "#04225CFF"),
+    axis.text.y.right = element_text(color = "#04225CFF"),
+    axis.ticks.y.right = element_line(color = "#04225CFF"),
+    axis.line.y.right = element_line(color = "#04225CFF")
   )
 
 
